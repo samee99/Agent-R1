@@ -76,16 +76,16 @@ class ToolGenerationManager:
             match = re.search(tool_pattern, resp, re.DOTALL)
             
             if not match:
-                return resp, False  # No tool call found
+                return resp + '<|im_end|>', False  # No tool call found
             
-            # resp = resp.split('</tool_call>')[0] + '</tool_call>'
-            tool_content = match.group(0)
+            resp = resp.split('</tool_call>')[0] + '</tool_call>'
+            # tool_content = match.group(0)
             
             # Replace all subsequent answer tag pairs with their content
-            rest_of_string = resp[match.end():]
-            cleaned_rest = re.sub(r'<tool_call>(.*?)</tool_call>', r'\1', rest_of_string, flags=re.DOTALL)
+            # rest_of_string = resp[match.end():]
+            # cleaned_rest = re.sub(r'<tool_call>(.*?)</tool_call>', r'\1', rest_of_string, flags=re.DOTALL)
             
-            return resp[:match.start()] + tool_content + cleaned_rest, True
+            return resp + '<|im_end|>', True
         
         # Process each response string
         return [process_single_response(resp)[0] for resp in responses_str], [process_single_response(resp)[1] for resp in responses_str]

@@ -126,12 +126,19 @@ if __name__ == '__main__':
             indices = random.sample(range(len(validation_dataset)), args.val_size)
             validation_dataset = validation_dataset.select(indices)
     
-    instruction_following = """Answer the given question. 
-You must conduct reasoning inside <think>...</think>. After reasoning, you must output the final answer inside <answer>...</answer>. 
-During reasoning, you can use the tools provided to you to answer the question. You must use the tools only within the <think>...</think> section. You can use the tool as many times as you want.
-If you no further external information needed, you can directly output the answer inside <answer>...</answer>, without detailed illustation.
+    instruction_following = """Answer the given question. You can use the tools provided to you to answer the question. You can use the tool as many times as you want.
+You must first conduct reasoning inside <think>...</think>. If you need to use the tool, you can use the tool call <tool_call>...</tool_call> to call the tool after <think>...</think>.
+When you have the final answer, you can output the answer inside <answer>...</answer>.
 
-Output format:
+Output format for tool call:
+<think>
+...
+</think>
+<tool_call>
+...
+</tool_call>
+
+Output format for answer:
 <think>
 ...
 </think>

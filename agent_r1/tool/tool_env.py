@@ -167,7 +167,7 @@ class ToolEnv:
             Formatted output
         """
         # Wrap environment feedback as tool response format
-        tool_response = f"\n<tool_response>\n{env_feedback}\n</tool_response>"
+        tool_response = f"\n<im_start>user\n<tool_response>\n{env_feedback}\n</tool_response>\n<im_end>\n<im_start>assistant\n"
         
         return tool_response
     
