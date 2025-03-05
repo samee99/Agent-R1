@@ -94,6 +94,22 @@ class Tool(ABC):
             Tool execution result
         """
         pass
+
+    def batch_execute(self, args_list: List[Dict]) -> List[str]:
+        """
+        Execute multiple tool calls in batch
+        
+        By default, this method falls back to individual execution.
+        Override this method for tools that can benefit from batch execution.
+        
+        Args:
+            args_list: List of tool parameters
+            
+        Returns:
+            List of tool execution results
+        """
+        return [self.execute(args) for args in args_list]
+    
     
     def validate_args(self, args: Dict) -> Tuple[bool, str]:
         """

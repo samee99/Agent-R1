@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import random
 
 from .tensor_helper import TensorHelper, TensorConfig
-from agent_r1.tool.tool_env import ToolEnv
+from agent_r1.tool.tool_env import ToolEnv, step, step_batch
 from verl import DataProto
 from verl.utils.tracking import Tracking
 
@@ -26,6 +26,8 @@ class ToolGenerationConfig:
     max_response_length: int
     max_tool_response_length: int  # Renamed from max_obs_length
     num_gpus: int
+    # use_parallel_tool_calls: bool = False
+    use_batch_tool_calls: bool = False  # New option for batch execution
 
 class ToolGenerationManager:
     """Manager for handling LLM tool-based generation and interaction"""
@@ -122,21 +124,99 @@ class ToolGenerationManager:
     
     def _execute_tool_calls(self, response_strs: List[str], 
                           envs: List[ToolEnv], 
-                          active_mask: torch.Tensor) -> Tuple[List[str], List[float], List[bool]]:
-        """Execute tool calls and return tool responses, rewards, and done flags."""
-        tool_responses = []
+                          active_mask: torch.Tensor) -> List[str]:
+        """Execute tool calls sequentially and return tool responses."""
+        # Convert torch tensor to list of booleans if needed
+        active_list = active_mask.tolist() if isinstance(active_mask, torch.Tensor) else active_mask
         
-        for resp, env, active in zip(response_strs, envs, active_mask):
+        # Initialize result list with empty strings
+        tool_responses = [""] * len(response_strs)
+        
+        # Process each environment sequentially
+        for i, (resp, env, active) in enumerate(zip(response_strs, envs, active_list)):
             if not active:
-                tool_responses.append("")
                 continue
+                
             # Step the environment using the agent's response
-            tool_response, _, _, _ = env.step(resp)
-            tool_response = ToolEnv.formulate_output(tool_response)
+            result = step(env, resp)
+            tool_response = result[0]  # Extract observation from (observation, reward, done, info)
+            tool_responses[i] = ToolEnv.formulate_output(tool_response)
             
-            # Collect results
-            tool_responses.append(tool_response)
+        return tool_responses
+    
+    # def _execute_tool_calls_parallel(self, response_strs: List[str], 
+    #                                 envs: List[ToolEnv], 
+    #                                 active_mask: torch.Tensor) -> List[str]:
+    #     """Execute tool calls in parallel using Ray."""
+    #     # Initialize Ray if not already initialized
+    #     if not ray.is_initialized():
+    #         ray.init(ignore_reinit_error=True)
+        
+    #     # Convert torch tensor to list of booleans if needed
+    #     active_list = active_mask.tolist() if isinstance(active_mask, torch.Tensor) else active_mask
+        
+    #     # Define a remote function to process a single environment step
+    #     @ray.remote
+    #     def process_env_step(resp, env):
+    #         # Step the environment using the agent's response
+    #         result = step(env, resp)
+    #         return result[0]  # Return only the observation
+        
+    #     # Create a list to store results
+    #     tool_responses = [""] * len(response_strs)
+    #     futures_with_indices = []
+        
+    #     # Submit tasks to Ray
+    #     for i, (resp, env, active) in enumerate(zip(response_strs, envs, active_list)):
+    #         if not active:
+    #             continue
             
+    #         # Submit the task to Ray for parallel execution
+    #         future = process_env_step.remote(resp, env)
+    #         futures_with_indices.append((future, i))
+        
+    #     # Wait for all futures to complete and collect results
+    #     for future, idx in futures_with_indices:
+    #         observation = ray.get(future)
+    #         tool_responses[idx] = ToolEnv.formulate_output(observation)
+        
+    #     return tool_responses
+    
+    def _execute_tool_calls_batch(self, response_strs: List[str], 
+                                 envs: List[ToolEnv], 
+                                 active_mask: torch.Tensor) -> List[str]:
+        """Execute tool calls in batch for tools that support batch operations."""
+        # Convert torch tensor to list of booleans
+        active_list = active_mask.tolist() if isinstance(active_mask, torch.Tensor) else active_mask
+        
+        # Filter active environments and responses
+        active_envs = []
+        active_responses = []
+        active_indices = []
+        
+        for i, (env, resp, active) in enumerate(zip(envs, response_strs, active_list)):
+            if active:
+                active_envs.append(env)
+                active_responses.append(resp)
+                active_indices.append(i)
+        
+        # Initialize result list with empty strings
+        tool_responses = [""] * len(response_strs)
+        
+        if not active_envs:
+            return tool_responses
+            
+        # Use the independent step_batch function for active environments
+        batch_results = step_batch(active_envs, active_responses)
+        
+        # Map results back to original indices
+        for idx, result in zip(active_indices, batch_results):
+            if result is None:
+                tool_responses[idx] = ""
+            else:
+                observation = result[0]  # Extract observation from (observation, reward, done, info)
+                tool_responses[idx] = ToolEnv.formulate_output(observation)
+                
         return tool_responses
     
     def _update_rolling_state(self, rollings, cur_responses: torch.Tensor, 
@@ -271,7 +351,15 @@ class ToolGenerationManager:
 
             turns[active_mask] += 1
 
-            tool_responses = self._execute_tool_calls(responses_str, envs, active_mask)
+            # if self.config.use_parallel_tool_calls:
+            #     # Use parallel execution for tool calls
+            #     tool_responses = self._execute_tool_calls_parallel(responses_str, envs, active_mask)
+            if self.config.use_batch_tool_calls:
+                # Use batch execution for tool calls
+                tool_responses = self._execute_tool_calls_batch(responses_str, envs, active_mask)
+            else:
+                # Use sequential execution for tool calls
+                tool_responses = self._execute_tool_calls(responses_str, envs, active_mask)
 
             print(f"[DEBUG] TOOL RESPONSES EXAMPLE: {tool_responses[0]}")
 
