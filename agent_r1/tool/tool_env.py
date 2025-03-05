@@ -18,7 +18,7 @@ class ToolEnv:
     Generic tool environment class, handling tool calls, history tracking, and state
     """
     INVALID_ACTION = {"tool": "invalid", "args": {}}
-    PENALTY_FOR_INVALID = -1.0
+    PENALTY_FOR_INVALID = 0.0
     
     def __init__(self, tools: List[Tool] = None, max_turns: int = 10):
         """
@@ -167,7 +167,7 @@ class ToolEnv:
             Formatted output
         """
         # Wrap environment feedback as tool response format
-        tool_response = f"\n<im_start>user\n<tool_response>\n{env_feedback}\n</tool_response>\n<im_end>\n<im_start>assistant\n"
+        tool_response = f"\n<|im_start|>user\n<tool_response>\n{env_feedback}\n</tool_response>\n<|im_end|>\n<|im_start|>assistant\n"
         
         return tool_response
     
@@ -184,7 +184,7 @@ class ToolEnv:
         self.steps_taken += 1
         action = self.extract_tool_call(action_text)
 
-        # print(f"[DEBUG] ACTION: {action}")
+        print(f"[DEBUG] ACTION: {action}")
         
         if action == self.INVALID_ACTION:
             result = "Invalid tool call format. Please use <tool_call>{\"name\": \"tool_name\", \"arguments\": {params_json}}</tool_call> format."

@@ -45,7 +45,25 @@ if __name__ == '__main__':
     train_dataset = dataset['train']
     test_dataset = dataset['test']
 
-    instruction_following = "Let's think step by step and output the final answer after \"####\"."
+    instruction_following = """You can use the tools provided to you to answer the question. You can use the tool as many times as you want.
+You must first conduct reasoning inside <think>...</think>. If you get the final answer, you can output the answer inside <answer>...</answer>.
+
+Output format for tool call:
+<think>
+...
+</think>
+<tool_call>
+...
+</tool_call>
+
+Output format for answer:
+<think>
+...
+</think>
+<answer>
+...
+</answer>
+"""
 
     # add a row to each data item that represents a unique id
     def make_map_fn(split):
@@ -81,6 +99,9 @@ if __name__ == '__main__':
 
     train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
     test_dataset = test_dataset.map(function=make_map_fn('test'), with_indices=True)
+
+    # train_dataset = train_dataset.select(range(64))
+    test_dataset = test_dataset.select(range(100))
 
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir

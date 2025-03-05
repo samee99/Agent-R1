@@ -262,7 +262,8 @@ class ToolGenerationManager:
             responses_ids, responses_str, new_active_masks = self._postprocess_responses(gen_output.batch['responses'])
 
             # print(f"[DEBUG] RESPONSES IDS SHAPE: {responses_ids.shape}")
-            print(f"[DEBUG] RESPONSES STR EXAMPLE: {responses_str[0]}")
+            for i in range(len(responses_str)):
+                print(f"[DEBUG] RESPONSES STR EXAMPLE: {responses_str[i]}")
 
             responses_ids, responses_str = self.tensor_fn._example_level_pad(responses_ids, responses_str, active_mask)
 
@@ -272,7 +273,7 @@ class ToolGenerationManager:
 
             tool_responses = self._execute_tool_calls(responses_str, envs, active_mask)
 
-            # print(f"[DEBUG] TOOL RESPONSES EXAMPLE: {tool_responses[0]}")
+            print(f"[DEBUG] TOOL RESPONSES EXAMPLE: {tool_responses[0]}")
 
             active_num_list.append(active_mask.sum().item())
             tool_responses_ids = self._process_tool_responses(tool_responses)
