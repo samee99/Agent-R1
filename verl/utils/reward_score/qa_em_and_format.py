@@ -98,13 +98,13 @@ def compute_score_format(solution_str):
         for i, assistant_block in enumerate(assistant_blocks[:-1]):
             if assistant_block.count('<think>') == 1 and assistant_block.count('</think>') == 1 and assistant_block.count('<tool_call>') == 1 and assistant_block.count('</tool_call>') == 1:
                 think_match = re.search(r'^<think>(.*?)</think>\n<tool_call>(.*?)</tool_call>$', assistant_block, re.DOTALL)
-                soft_think_match = re.search(r'<think>(.*?)</think>(.*?)<tool_call>(.*?)</tool_call>', assistant_block, re.DOTALL)
+                # soft_think_match = re.search(r'<think>(.*?)</think>(.*?)<tool_call>(.*?)</tool_call>', assistant_block, re.DOTALL)
                 if think_match:
                         # format_reward += 0.2 * (0.8 ** i)
-                        format_reward += max(0, 0.2 - 0.05 * i)
-                elif soft_think_match:
-                    # format_reward += 0.1 * (0.8 ** i)
-                    format_reward += max(0, 0.1 - 0.05 * i)
+                        format_reward += 0.2
+                # elif soft_think_match:
+                #     # format_reward += 0.1 * (0.8 ** i)
+                #     format_reward += max(0, 0.1 - 0.05 * i)
 
         # Check the last assistant block contains <answer> tags
         if assistant_blocks:  # 确保有至少一个assistant块
@@ -179,7 +179,7 @@ def compute_score_format_answer(solution_str, ground_truth):
     try:
         format_reward = compute_score_format(solution_str)
         answer_reward = compute_score_answer(solution_str, ground_truth)
-        return format_reward + answer_reward
+        return min(format_reward, 1.0) + answer_reward
     except Exception as e:
         print(f"[DEBUG] Error in compute_score_format_answer: {e}")
         return 0.0
@@ -199,6 +199,8 @@ def compute_score_em(solution_str, ground_truth):
         assistant_blocks = re.findall(r'<\|im_start\|>assistant\n(.*?)<\|im_end\|>', solution_str, re.DOTALL)
         solution_str = assistant_blocks[-1]
         answer = extract_solution(solution_str)
+        if answer is None:
+            return 0.0
         return float(subem_check(answer, ground_truth))
     except Exception as e:
         print(f"[DEBUG] Error in compute_score_em: {e}")

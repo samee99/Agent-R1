@@ -10,7 +10,7 @@ if __name__ == "__main__":
     os.makedirs("../data/corpus")
     
     corpus = []
-    with open("../data/corpus/hotpotqahpqa_corpus.jsonl") as f:
+    with open("../data/corpus/hotpotqa/hpqa_corpus.jsonl") as f:
         for line in f:
             data = json.loads(line)
             corpus.append(data["title"] + " " + data["text"])
@@ -25,13 +25,13 @@ if __name__ == "__main__":
 
     embeddings = model.encode_corpus(corpus)
     #save
-    np.save("../data/corpus/hotpotqahpqa_corpus.npy", embeddings)
+    np.save("../data/corpus/hotpotqa/hpqa_corpus.npy", embeddings)
 
-    corpus_numpy = np.load("../data/corpus/hotpotqahpqa_corpus.npy")
+    corpus_numpy = np.load("../data/corpus/hotpotqa/hpqa_corpus.npy")
     dim = corpus_numpy.shape[-1]
 
     corpus_numpy = corpus_numpy.astype(np.float32)
     
     index = faiss.index_factory(dim, 'Flat', faiss.METRIC_INNER_PRODUCT)
     index.add(corpus_numpy)
-    faiss.write_index(index, '../data/corpus/hotpotqaindex.bin')
+    faiss.write_index(index, '../data/corpus/hotpotqa/index.bin')

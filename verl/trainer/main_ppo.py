@@ -23,8 +23,8 @@ import ray
 import hydra
 
 from verl import DataProto
-# from verl.utils.reward_score.qa_em_and_format import compute_score_format, compute_score_em, compute_score_format_answer
-from verl.utils.reward_score.gsm8k import compute_score_format_answer, compute_score_em, compute_score_format
+from verl.utils.reward_score.qa_em_and_format import compute_score_format, compute_score_em, compute_score_format_answer
+# from verl.utils.reward_score.gsm8k import compute_score_format_answer, compute_score_em, compute_score_format
 import torch
 
 class RewardManager():
@@ -195,8 +195,8 @@ def main_task(config, compute_score=None):
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
-    # env = ToolEnv(tools=[SearchTool()], max_turns=config.max_turns)
-    env = ToolEnv(tools=[CalculatorTool()], max_turns=config.tool.max_turns)
+    env = ToolEnv(tools=[SearchTool()], max_turns=config.tool.max_turns)
+    # env = ToolEnv(tools=[CalculatorTool()], max_turns=config.tool.max_turns)
 
     trainer = RayPPOTrainer(config=config,
                             tokenizer=tokenizer,

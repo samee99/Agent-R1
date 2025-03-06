@@ -40,7 +40,7 @@ class SearchTool(Tool):
             search_db: Custom search database, if None, use default
         """
         name = "search"
-        description = "Search for information on the internet using Wikipedia as a knowledge source. This tool utilizes the NeuML/txtai-wikipedia embeddings index which contains the first paragraph (abstract) of each Wikipedia article. It can filter results based on article popularity using the percentile field."
+        description = "Search for information on the internet using Wikipedia as a knowledge source."
         parameters = {
             "type": "object",
             "properties": {
@@ -63,14 +63,14 @@ class SearchTool(Tool):
         # self.embeddings.load(provider="huggingface-hub", container="neuml/txtai-wikipedia")
         # print(f"[DEBUG] EMBEDDINGS LOADED")
         print(f"[DEBUG] EMBEDDINGS LOADING")
-        self.index = faiss.read_index("/share/ruiran/Agent-R1/data/corpus/hotpotqa/index.bin")
+        self.index = faiss.read_index("/home/yanruiran/workspace/Agent-R1/data/corpus/hotpotqa/index.bin")
         self.model = FlagAutoModel.from_finetuned(
-            '/share/shitao/wyz/yrr/models/bge-large-en-v1.5',
+            'BAAI/bge-large-en-v1.5',
             query_instruction_for_retrieval="Represent this sentence for searching relevant passages: ",
-            devices="cuda:0",   # if not specified, will use all available gpus or cpu when no gpu available
+            devices="cpu",   # if not specified, will use all available gpus or cpu when no gpu available
         )
         self.corpus = []
-        with open("/share/ruiran/Agent-R1/data/corpus/hotpotqa/hpqa_corpus.jsonl","r") as f:
+        with open("/home/yanruiran/workspace/Agent-R1/data/corpus/hotpotqa/hpqa_corpus.jsonl","r") as f:
             for idx, line in enumerate(f):
                 data = json.loads(line)
                 self.corpus.append(data['title'] + " " + data["text"])
@@ -117,16 +117,12 @@ class SearchTool(Tool):
         Returns:
             Formatted results as a string
         """
-        if not results:
-            return "No results found."
-        
-        formatted = "### Search Results\n\n"
+        results_list = []
         
         for i, result in enumerate(results):
-            
-            formatted += f"**{i}. {self.corpus[result]}\n\n**"
+            results_list.append(self.corpus[result])
         
-        return formatted
+        return json.dumps({"results": results_list})
     
     def calculate_reward(self, args: Dict, result: str) -> float:
         """

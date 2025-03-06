@@ -128,7 +128,7 @@ class vLLMRollout(BaseRollout):
             kwargs['detokenize'] = False
 
         # Add custom stop words if provided in the config
-        if 'custom_stop_words' in config and config.custom_stop_words:
+        if 'custom_stop_words' in config and len(config.custom_stop_words) > 0:
             kwargs['detokenize'] = True
             kwargs['stop'] = config.custom_stop_words
 

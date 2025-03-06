@@ -1,6 +1,6 @@
 export VLLM_ATTENTION_BACKEND=XFORMERS
-export BASE_MODEL='/share/chaofan/models/Qwen2.5-7B-Instruct'
-export EXPERIMENT_NAME=hotpotqa-em-format-qwen2.5-7b-it-debug
+export BASE_MODEL='Qwen/Qwen2.5-3B-Instruct'
+export EXPERIMENT_NAME=hotpotqa-em-format-qwen2.5-3b-it
 export HYDRA_FULL_ERROR=1
 export CUDA_LAUNCH_BLOCKING=1
 
@@ -24,7 +24,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=8 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=4 \
     actor_rollout_ref.rollout.name=vllm \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=8 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     critic.optim.lr=1e-5 \
@@ -42,6 +42,6 @@ python3 -m verl.trainer.main_ppo \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=-1 \
-    trainer.test_freq=10 \
+    trainer.test_freq=50 \
     trainer.total_epochs=10 \
     trainer.val_before_train=False $@
