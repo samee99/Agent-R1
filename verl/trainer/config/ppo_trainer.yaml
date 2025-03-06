@@ -179,4 +179,4 @@ trainer:
 
 tool:
   max_turns: 10
-  use_batch_tool_calls: False
+  use_batch_tool_calls: True

@@ -1024,6 +1024,7 @@ class RayPPOTrainer(object):
             max_response_length=self.config.data.max_response_length,
             max_tool_response_length=self.config.data.max_tool_response_length,
             num_gpus=self.config.trainer.n_gpus_per_node,
+            use_batch_tool_calls=self.config.tool.use_batch_tool_calls,
         )
 
         generation_manager = ToolGenerationManager(
