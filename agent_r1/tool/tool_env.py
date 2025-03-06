@@ -166,6 +166,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                 reward=0
             )
             results[i] = (result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
+            print(f"[ERROR] Unknown tool: {result}")
             continue
             
         # Get tool instance
@@ -184,6 +185,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                 reward=0
             )
             results[i] = (result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
+            print(f"[ERROR] Invalid arguments for tool: {result}")
             continue
             
         # Group by tool name
@@ -207,6 +209,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
         try:
             # Try batch execution
             batch_results = tool.batch_execute(args_list)
+            print(f"[DEBUG] batch_results: {batch_results}")
             
             # Process results
             for idx, env, result, args in zip(indices, envs_list, batch_results, args_list):
@@ -284,6 +287,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                     
                     results[sub_idx] = (error_msg, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
     
+                print(f"[DEBUG] result: {result}")
     return results
 
 class ToolEnv:

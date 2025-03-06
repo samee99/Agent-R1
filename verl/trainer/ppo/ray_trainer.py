@@ -1018,7 +1018,7 @@ class RayPPOTrainer(object):
 
         # Agent config preparation
         gen_config = ToolGenerationConfig(
-            max_turns=self.config.max_turns,
+            max_turns=self.config.tool.max_turns,
             max_start_length=self.config.data.max_start_length,
             max_prompt_length=self.config.data.max_prompt_length,
             max_response_length=self.config.data.max_response_length,

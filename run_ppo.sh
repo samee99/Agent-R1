@@ -1,6 +1,6 @@
 export VLLM_ATTENTION_BACKEND=XFORMERS
-export BASE_MODEL='Qwen/Qwen2.5-1.5B-Instruct'
-export EXPERIMENT_NAME=hotpotqa-em-format-qwen2.5-1.5b-it
+export BASE_MODEL='/share/chaofan/models/Qwen2.5-7B-Instruct'
+export EXPERIMENT_NAME=hotpotqa-em-format-qwen2.5-7b-it-debug
 export HYDRA_FULL_ERROR=1
 export CUDA_LAUNCH_BLOCKING=1
 
@@ -38,7 +38,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.critic_warmup=0 \
     trainer.logger=['console','wandb'] \
     trainer.project_name='verl_ppo_hotpotqa' \
-    trainer.experiment_name='qwen2_5_1_5b_em_format' \
+    trainer.experiment_name=$EXPERIMENT_NAME \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
     trainer.save_freq=-1 \
