@@ -3,7 +3,7 @@ Calculator tool implementation for performing basic arithmetic operations
 """
 
 from typing import Dict
-
+import json
 from agent_r1.tool.tool_base import Tool
 
 
@@ -17,15 +17,13 @@ class CalculatorTool(Tool):
         Initialize the calculator tool
         """
         name = "calculator"
-        description = """
-        Perform basic arithmetic calculations (addition, subtraction, multiplication, division).
-        """
+        description = "Perform basic arithmetic calculations (addition, subtraction, multiplication, division)."
         parameters = {
             "type": "object",
             "properties": {
                 "expression": {
                     "type": "string",
-                    "description": "Arithmetic expression to evaluate (using operators +, -, *, / and parentheses)"
+                    "description": "Arithmetic expression to evaluate (using operators +, -, *, / and parentheses). Must be in a format compatible with Python's eval function, such as '2 + 3 * (4 - 1)'. Only basic arithmetic operations are supported."
                 }
             },
             "required": ["expression"]
@@ -59,13 +57,14 @@ class CalculatorTool(Tool):
             
             # Evaluate the expression in the safe environment
             result = eval(expression, {"__builtins__": {}}, safe_dict)
+            result = {"result": result}
             
-            return f"Result: {result}"
+            return json.dumps(result)
         
         except ZeroDivisionError:
-            return "Error: Division by zero is not allowed."
+            return json.dumps({"error": "Division by zero is not allowed."})
         except Exception as e:
-            return f"Error: {str(e)}"
+            return json.dumps({"error": str(e)})
     
     def calculate_reward(self, args: Dict, result: str) -> float:
         """

@@ -196,7 +196,7 @@ def main_task(config, compute_score=None):
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
     # env = ToolEnv(tools=[SearchTool()], max_turns=config.max_turns)
-    env = ToolEnv(tools=[CalculatorTool()], max_turns=config.max_turns)
+    env = ToolEnv(tools=[CalculatorTool()], max_turns=config.tool.max_turns)
 
     trainer = RayPPOTrainer(config=config,
                             tokenizer=tokenizer,

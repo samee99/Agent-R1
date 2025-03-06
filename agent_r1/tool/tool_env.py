@@ -134,7 +134,9 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
     # First pass: extract tool calls and group by tool name
     for i, (env, action_text) in enumerate(zip(envs, action_texts)):
         # Extract the tool call
+        print(f"[DEBUG] ACTION TEXT: {action_text}")
         action = env.extract_tool_call(action_text)
+        print(f"[DEBUG] ACTION: {action}")
         action_map[i] = (env, action, action_text)
         
         # Handle invalid actions
@@ -440,7 +442,7 @@ class ToolEnv:
             Formatted output
         """
         # Wrap environment feedback as tool response format
-        tool_response = f"\n<|im_start|>user\n<tool_response>\n{env_feedback}\n</tool_response>\n<|im_end|>\n<|im_start|>assistant\n"
+        tool_response = f"\n<|im_start|>user\n<tool_response>\n{env_feedback}\n</tool_response>\n<|im_end|>\n<|im_start|>assistant\n<think>\n"
         
         return tool_response
     

@@ -50,18 +50,18 @@ You must first conduct reasoning inside <think>...</think>. If you get the final
 
 Output format for tool call:
 <think>
-...
+(your reasoning)
 </think>
 <tool_call>
-...
+{"name": <function-name>, "arguments": <args-json-object>}
 </tool_call>
 
 Output format for answer:
 <think>
-...
+(your reasoning)
 </think>
 <answer>
-...
+(final answer)
 </answer>
 """
 
