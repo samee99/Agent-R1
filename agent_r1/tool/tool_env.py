@@ -168,6 +168,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                 reward=0
             )
             results[i] = (result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
+            print(f"[ERROR] Unknown tool: {result}")
             continue
             
         # Get tool instance
@@ -186,6 +187,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                 reward=0
             )
             results[i] = (result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
+            print(f"[ERROR] Invalid arguments for tool: {result}")
             continue
             
         # Group by tool name
@@ -206,86 +208,88 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
         # All environments share the same tool instances, so we can use the first one
         tool = envs_list[0].tool_map[tool_name]
         
-        try:
-            # Try batch execution
-            batch_results = tool.batch_execute(args_list)
+        # try:
+        # Try batch execution
+        batch_results = tool.batch_execute(args_list)
+        print(f"[DEBUG] batch_results: {batch_results}")
+        
+        # Process results
+        for idx, env, result, args in zip(indices, envs_list, batch_results, args_list):
+            env.steps_taken += 1
+            reward = tool.calculate_reward(args, result)
             
-            # Process results
-            for idx, env, result, args in zip(indices, envs_list, batch_results, args_list):
-                env.steps_taken += 1
-                reward = tool.calculate_reward(args, result)
+            # Record tool call history
+            env.tool_history.append({
+                "tool": tool_name,
+                "args": args,
+                "result": result
+            })
+            
+            # Check if max turns reached
+            done = env.steps_taken >= env.max_turns
+            
+            # Update tracking variables
+            action_text = action_texts[idx]
+            action = action_map[idx][1]
+            env._update_tracking_variables(
+                response=action_text,
+                action=action,
+                action_is_valid=True,
+                action_is_effective=True,
+                reward=reward
+            )
+            
+            results[idx] = (result, reward, done, {"action_is_valid": True, "action_is_effective": True})
                 
-                # Record tool call history
-                env.tool_history.append({
-                    "tool": tool_name,
-                    "args": args,
-                    "result": result
-                })
-                
-                # Check if max turns reached
-                done = env.steps_taken >= env.max_turns
-                
-                # Update tracking variables
-                action_text = action_texts[idx]
-                action = action_map[idx][1]
-                env._update_tracking_variables(
-                    response=action_text,
-                    action=action,
-                    action_is_valid=True,
-                    action_is_effective=True,
-                    reward=reward
-                )
-                
-                results[idx] = (result, reward, done, {"action_is_valid": True, "action_is_effective": True})
-                
-        except Exception as e:
-            # Fall back to individual execution
-            for sub_idx, env, args in zip(indices, envs_list, args_list):
-                try:
-                    env.steps_taken += 1
-                    result = tool.execute(args)
-                    reward = tool.calculate_reward(args, result)
+        # except Exception as e:
+        #     # Fall back to individual execution
+        #     for sub_idx, env, args in zip(indices, envs_list, args_list):
+        #         try:
+        #             env.steps_taken += 1
+        #             result = tool.execute(args)
+        #             reward = tool.calculate_reward(args, result)
                     
-                    # Record tool call history
-                    env.tool_history.append({
-                        "tool": tool_name,
-                        "args": args,
-                        "result": result
-                    })
+        #             # Record tool call history
+        #             env.tool_history.append({
+        #                 "tool": tool_name,
+        #                 "args": args,
+        #                 "result": result
+        #             })
                     
-                    # Check if max turns reached
-                    done = env.steps_taken >= env.max_turns
+        #             # Check if max turns reached
+        #             done = env.steps_taken >= env.max_turns
                     
-                    # Update tracking variables
-                    action_text = action_texts[sub_idx]
-                    action = action_map[sub_idx][1]
-                    env._update_tracking_variables(
-                        response=action_text,
-                        action=action,
-                        action_is_valid=True,
-                        action_is_effective=True,
-                        reward=reward
-                    )
+        #             # Update tracking variables
+        #             action_text = action_texts[sub_idx]
+        #             action = action_map[sub_idx][1]
+        #             env._update_tracking_variables(
+        #                 response=action_text,
+        #                 action=action,
+        #                 action_is_valid=True,
+        #                 action_is_effective=True,
+        #                 reward=reward
+        #             )
                     
-                    results[sub_idx] = (result, reward, done, {"action_is_valid": True, "action_is_effective": True})
+        #             results[sub_idx] = (result, reward, done, {"action_is_valid": True, "action_is_effective": True})
                     
-                except Exception as sub_e:
-                    # Handle individual execution errors
-                    error_msg = f"Error executing tool '{tool_name}': {str(sub_e)}"
+        #         except Exception as sub_e:
+        #             # Handle individual execution errors
+        #             error_msg = f"Error executing tool '{tool_name}': {str(sub_e)}"
                     
-                    # Update tracking variables
-                    action_text = action_texts[sub_idx]
-                    action = action_map[sub_idx][1]
-                    env._update_tracking_variables(
-                        response=action_text,
-                        action=action,
-                        action_is_valid=True,
-                        action_is_effective=False,
-                        reward=0
-                    )
+        #             # Update tracking variables
+        #             action_text = action_texts[sub_idx]
+        #             action = action_map[sub_idx][1]
+        #             env._update_tracking_variables(
+        #                 response=action_text,
+        #                 action=action,
+        #                 action_is_valid=True,
+        #                 action_is_effective=False,
+        #                 reward=0
+        #             )
                     
-                    results[sub_idx] = (error_msg, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
+        #             results[sub_idx] = (error_msg, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
     
+        #         print(f"[DEBUG] result: {result}")
     return results
 
 class ToolEnv:

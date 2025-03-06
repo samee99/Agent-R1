@@ -8,7 +8,10 @@ from typing import Dict, List, Any, Optional
 
 from agent_r1.tool.tool_base import Tool
 
-from txtai.embeddings import Embeddings
+# from txtai.embeddings import Embeddings
+import faiss
+from FlagEmbedding import FlagAutoModel
+import json
 
 # Load the index from the HF Hub
 # embeddings = Embeddings()
@@ -56,9 +59,23 @@ class SearchTool(Tool):
         super().__init__(name, description, parameters)
         
         # Initialize search database
-        self.embeddings = Embeddings()
-        self.embeddings.load(provider="huggingface-hub", container="neuml/txtai-wikipedia")
+        # self.embeddings = Embeddings()
+        # self.embeddings.load(provider="huggingface-hub", container="neuml/txtai-wikipedia")
         # print(f"[DEBUG] EMBEDDINGS LOADED")
+        print(f"[DEBUG] EMBEDDINGS LOADING")
+        self.index = faiss.read_index("/share/ruiran/Agent-R1/data/corpus/hotpotqa/index.bin")
+        self.model = FlagAutoModel.from_finetuned(
+            '/share/shitao/wyz/yrr/models/bge-large-en-v1.5',
+            query_instruction_for_retrieval="Represent this sentence for searching relevant passages: ",
+            devices="cuda:0",   # if not specified, will use all available gpus or cpu when no gpu available
+        )
+        self.corpus = []
+        with open("/share/ruiran/Agent-R1/data/corpus/hotpotqa/hpqa_corpus.jsonl","r") as f:
+            for idx, line in enumerate(f):
+                data = json.loads(line)
+                self.corpus.append(data['title'] + " " + data["text"])
+        print("[DEBUG] EMBEDDINGS LOADING END")
+
     
     def execute(self, args: Dict) -> str:
         """
@@ -72,20 +89,30 @@ class SearchTool(Tool):
         Returns:
             Formatted search results
         """
-        query = args.get("query", "").strip()
-        limit = args.get("limit", 5)
+        # query = args.get("query", "").strip()
+        # limit = args.get("limit", 5)
         
 
-        results = self.embeddings.search(query, limit=limit)
+        # # results = self.embeddings.search(query, limit=limit)
+        # dist, ids = self.index.search(query, limit)
         
-        return self._format_results(results)
+        # return self._format_results(results)
+        pass
     
-    def _format_results(self, results: List[Dict]) -> str:
+    def batch_execute(self, args_list: List[Dict]) -> List[str]:
+        # [{'query':xxx, 'limit':xxx},{}]
+        queries = [x["query"] for x in args_list]
+        embeddings = self.model.encode_queries(queries)
+        dist, ids = self.index.search(embeddings, 5) # ids: b*5
+        results_str = [self._format_results(ids[i]) for i in range(len(ids))]
+        return results_str
+
+    def _format_results(self, results: List) -> str:
         """
         Format search results for better readability
         
         Args:
-            results: List of search result dictionaries
+            results: List of search result List
             
         Returns:
             Formatted results as a string
@@ -95,12 +122,9 @@ class SearchTool(Tool):
         
         formatted = "### Search Results\n\n"
         
-        for i, result in enumerate(results, 1):
-            title = result.get("id", f"Result {i}")
-            text = result.get("text", "No content available")
+        for i, result in enumerate(results):
             
-            formatted += f"**{i}. {title}**"
-            formatted += f"{text}\n\n"
+            formatted += f"**{i}. {self.corpus[result]}\n\n**"
         
         return formatted
     
@@ -115,17 +139,18 @@ class SearchTool(Tool):
         Returns:
             Reward value
         """
-        # Basic reward calculation based on whether results were found
-        if "No results found" in result:
-            return 0.1  # Small reward for trying
+        # # Basic reward calculation based on whether results were found
+        # if "No results found" in result:
+        #     return 0.1  # Small reward for trying
         
-        # Count number of results found
-        result_count = result.count("**")
+        # # Count number of results found
+        # result_count = result.count("**")
         
-        # Base reward for finding results
-        reward = 0.5
+        # # Base reward for finding results
+        # reward = 0.5
         
-        # Additional reward based on number of results (diminishing returns)
-        reward += min(0.5, 0.1 * result_count)
+        # # Additional reward based on number of results (diminishing returns)
+        # reward += min(0.5, 0.1 * result_count)
         
-        return reward
+        # return reward
+        return 0.0
