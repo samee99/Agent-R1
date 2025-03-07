@@ -101,7 +101,7 @@ def compute_score_format(solution_str):
                 # soft_think_match = re.search(r'<think>(.*?)</think>(.*?)<tool_call>(.*?)</tool_call>', assistant_block, re.DOTALL)
                 if think_match:
                         # format_reward += 0.2 * (0.8 ** i)
-                        format_reward += 0.2
+                        format_reward += 0.1
                 # elif soft_think_match:
                 #     # format_reward += 0.1 * (0.8 ** i)
                 #     format_reward += max(0, 0.1 - 0.05 * i)
@@ -110,16 +110,16 @@ def compute_score_format(solution_str):
         if assistant_blocks:  # 确保有至少一个assistant块
             last_assistant_block = assistant_blocks[-1]
             think_answer_match = re.search(r'^<think>(.*?)</think>\n<answer>(.*?)</answer>$', last_assistant_block, re.DOTALL)
-            think_match = re.search(r'<think>(.*?)</think>', last_assistant_block, re.DOTALL)
-            answer_match = re.search(r'<answer>(.*?)</answer>', last_assistant_block, re.DOTALL)
+            # think_match = re.search(r'<think>(.*?)</think>', last_assistant_block, re.DOTALL)
+            # answer_match = re.search(r'<answer>(.*?)</answer>', last_assistant_block, re.DOTALL)
             if think_answer_match:
-                format_reward += 0.2
-            elif think_match and answer_match:
-                format_reward += 0.15
-            elif think_match and not answer_match:
                 format_reward += 0.1
-            elif not think_match and answer_match:
-                format_reward += 0.05
+            # elif think_match and answer_match:
+            #     format_reward += 0.15
+            # elif think_match and not answer_match:
+            #     format_reward += 0.1
+            # elif not think_match and answer_match:
+            #     format_reward += 0.05
     except Exception as e:
         print(f"[DEBUG] Error in compute_score_format: {e}")
         return 0.0
@@ -150,16 +150,18 @@ def compute_score_answer(solution_str, ground_truth):
         
         if answer is not None:
             # Check for exact match within <answer>
-            if em_check(answer, ground_truth):
+            # if em_check(answer, ground_truth):
+            #     answer_reward = 1.0
+            # # Check for substring match within <answer>
+            # elif subem_check(answer, ground_truth):
+            #     answer_reward = 0.5
+            if subem_check(answer, ground_truth):
                 answer_reward = 1.0
-            # Check for substring match within <answer>
-            elif subem_check(answer, ground_truth):
-                answer_reward = 0.5
         
         # If no match found within <answer>, check entire solution for substring match
         if answer_reward == 0.0:
             if subem_check(solution_str, ground_truth):
-                answer_reward = 0.1
+                answer_reward = 0.2
     except Exception as e:
         print(f"[DEBUG] Error in compute_score_answer: {e}")
         return 0.0
@@ -179,7 +181,7 @@ def compute_score_format_answer(solution_str, ground_truth):
     try:
         format_reward = compute_score_format(solution_str)
         answer_reward = compute_score_answer(solution_str, ground_truth)
-        return min(format_reward, 1.0) + answer_reward
+        return min(format_reward, 0.5) + answer_reward
     except Exception as e:
         print(f"[DEBUG] Error in compute_score_format_answer: {e}")
         return 0.0
