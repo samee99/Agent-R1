@@ -83,7 +83,7 @@ class ToolGenerationManager:
             match = re.search(tool_pattern, resp, re.DOTALL)
             
             if not match:
-                return resp, False  # No tool call found
+                return resp + self.tokenizer.eos_token, False  # No tool call found
             
             resp = resp.split(self.config.tool_call_end)[0] + self.config.tool_call_end
             # tool_content = match.group(0)
@@ -92,7 +92,7 @@ class ToolGenerationManager:
             # rest_of_string = resp[match.end():]
             # cleaned_rest = re.sub(r'<tool_call>(.*?)</tool_call>', r'\1', rest_of_string, flags=re.DOTALL)
             
-            return resp, True
+            return resp + self.tokenizer.eos_token, True
         
         # Process each response string
         return [process_single_response(resp)[0] for resp in responses_str], [process_single_response(resp)[1] for resp in responses_str]
@@ -136,7 +136,6 @@ class ToolGenerationManager:
         
         # Initialize result list with empty strings
         tool_responses = [""] * len(response_strs)
-        
         # Process each environment sequentially
         for i, (resp, env, active) in enumerate(zip(response_strs, envs, active_list)):
             if not active:
@@ -151,7 +150,7 @@ class ToolGenerationManager:
                     tokenize=False,
                     add_generation_prompt=True
                 )
-                tool_responses[i] = self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-2] + self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-1]
+                tool_responses[i] = '\n' + tool_response.split(self.tokenizer.eos_token)[-2] + self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-1]
             else:
                 tool_responses[i] = self.config.tool_custom_response_template.format(tool_response=tool_response)            
         return tool_responses
@@ -236,7 +235,6 @@ class ToolGenerationManager:
                     tool_responses[idx] = self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-2] + self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-1]
                 else:
                     tool_responses[idx] = self.config.tool_custom_response_template.format(tool_response=tool_response)
-                
         return tool_responses
     
     def _update_rolling_state(self, rollings, cur_responses: torch.Tensor, 
