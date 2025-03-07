@@ -48,7 +48,7 @@ if __name__ == '__main__':
                         help='Method to download the dataset: huggingface or direct')
     parser.add_argument('--train_size', type=int, default=None,
                         help='Number of training samples to use')
-    parser.add_argument('--val_size', type=int, default=None,
+    parser.add_argument('--val_size', type=int, default=64,
                         help='Number of validation samples to use')
 
     args = parser.parse_args()

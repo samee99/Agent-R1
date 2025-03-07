@@ -7,7 +7,7 @@ import os
 
 if __name__ == "__main__":
 
-    os.makedirs("../data/corpus")
+    os.makedirs("../data/corpus", exist_ok=True)
     
     corpus = []
     with open("../data/corpus/hotpotqa/hpqa_corpus.jsonl") as f:
@@ -16,9 +16,8 @@ if __name__ == "__main__":
             corpus.append(data["title"] + " " + data["text"])
 
 
-
     model = FlagAutoModel.from_finetuned(
-        '/share/shitao/wyz/yrr/models/bge-large-en-v1.5',
+        'BAAI/bge-large-en-v1.5',
         query_instruction_for_retrieval="Represent this sentence for searching relevant passages: ",
         # devices="cuda:0",   # if not specified, will use all available gpus or cpu when no gpu available
     )
