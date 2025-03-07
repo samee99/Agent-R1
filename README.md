@@ -16,8 +16,24 @@ Traditional approaches to building AI agents often rely on manually constructed 
 git clone https://github.com/your-org/Agent-R1.git
 cd Agent-R1
 
-# Install dependencies
-pip install -r requirements.txt
+```
+
+Install `verl`
+```bash
+# install verl together with some lightweight dependencies in setup.py
+pip3 install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu124
+pip3 install flash-attn==2.7.0.post2 --no-build-isolation
+git clone https://github.com/volcengine/verl.git
+cd verl
+pip3 install -e .
+```
+
+Install FlagEmbedding and faiss-cpu
+```bash
+git clone https://github.com/FlagOpen/FlagEmbedding.git
+cd FlagEmbedding
+pip3 install -e .
+pip3 install faiss-cpu
 ```
 
 #### 1. Download and preprocess HotpotQA dataset

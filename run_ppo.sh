@@ -1,6 +1,6 @@
 export VLLM_ATTENTION_BACKEND=XFORMERS
-export BASE_MODEL='Qwen/Qwen2.5-3B-Instruct'
-export EXPERIMENT_NAME=hotpotqa-em-format-qwen2.5-3b-it
+export BASE_MODEL='Qwen/Qwen2.5-3B'
+export EXPERIMENT_NAME=hotpotqa-em-format-qwen2.5-3b
 export HYDRA_FULL_ERROR=1
 export CUDA_LAUNCH_BLOCKING=1
 
@@ -38,11 +38,11 @@ python3 -m verl.trainer.main_ppo \
     algorithm.kl_ctrl.kl_coef=0.001 \
     trainer.critic_warmup=3 \
     trainer.logger=['console','wandb'] \
-    trainer.project_name='verl_ppo_hotpotqa' \
+    trainer.project_name='verl_rff_hotpotqa_3b' \
     trainer.experiment_name=$EXPERIMENT_NAME \
     trainer.n_gpus_per_node=8 \
     trainer.nnodes=1 \
-    trainer.save_freq=10 \
-    trainer.test_freq=10 \
-    trainer.total_epochs=2 \
-    trainer.val_before_train=True $@
+    trainer.save_freq=20 \
+    trainer.test_freq=20 \
+    trainer.total_epochs=1 \
+    trainer.val_before_train=True $@ 

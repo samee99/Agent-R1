@@ -312,6 +312,23 @@ class ToolEnv:
         self.tool_desc = [tool.get_description() for tool in self.tools]
         self.max_turns = max_turns
         self.reset_tracking_variables()
+
+    def tools_format_func(self) -> str:
+        template = """# Tools
+
+You may call one or more functions to assist with the user query.
+
+You are provided with function signatures within <tools></tools> XML tags:
+<tools>
+{tools}
+</tools>
+
+For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+<tool_call>
+{{"name": <function-name>, "arguments": <args-json-object>}}
+</tool_call>"""
+        tools = "\n".join([f"{json.dumps(tool.get_description(), ensure_ascii=False)}" for tool in self.tools])
+        return template.format(tools=tools)
         
     def reset_tracking_variables(self):
         """Reset tracking variables"""
@@ -433,22 +450,6 @@ class ToolEnv:
             descriptions.append(tool.get_simple_description())
             
         return "\n\n".join(descriptions)
-    
-    @staticmethod
-    def formulate_output(env_feedback: str):
-        """
-        Format environment feedback as input for LLM
-        
-        Args:
-            env_feedback: Environment feedback information
-            
-        Returns:
-            Formatted output
-        """
-        # Wrap environment feedback as tool response format
-        tool_response = f"\n<|im_start|>user\n<tool_response>\n{env_feedback}\n</tool_response>\n<|im_end|>\n<|im_start|>assistant\n<think>\n"
-        
-        return tool_response
     
     def copy(self):
         """

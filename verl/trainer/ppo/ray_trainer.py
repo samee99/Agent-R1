@@ -533,7 +533,8 @@ class RayPPOTrainer(object):
                                          filter_prompts=True,
                                          return_raw_chat=self.config.data.get('return_raw_chat', False),
                                          truncation='error',
-                                         tool_env=self.env)
+                                         tool_env=self.env,
+                                         use_custom_tool_format_func=self.config.data.get('use_custom_tool_format_func', False))
         # use sampler for better ckpt resume
         if self.config.data.shuffle:
             train_dataloader_generator = torch.Generator()
@@ -555,7 +556,8 @@ class RayPPOTrainer(object):
                                        filter_prompts=True,
                                        return_raw_chat=self.config.data.get('return_raw_chat', False),
                                        truncation='error',
-                                       tool_env=self.val_env)
+                                       tool_env=self.val_env,
+                                       use_custom_tool_format_func=self.config.data.get('use_custom_tool_format_func', False))
         
         self.val_dataloader = StatefulDataLoader(
             dataset=self.val_dataset,
@@ -728,6 +730,12 @@ class RayPPOTrainer(object):
             max_tool_response_length=self.config.data.max_tool_response_length,
             num_gpus=self.config.trainer.n_gpus_per_node,
             use_batch_tool_calls=self.config.tool.use_batch_tool_calls,
+            tool_call_start=self.config.tool.tool_call_start,
+            tool_call_end=self.config.tool.tool_call_end,
+            tool_response_start=self.config.tool.tool_response_start,
+            tool_response_end=self.config.tool.tool_response_end,
+            tool_chat_template_apply=self.config.tool.tool_chat_template_apply,
+            tool_custom_response_template=self.config.tool.tool_custom_response_template,
         )
 
         # Agent config preparation
@@ -1025,6 +1033,12 @@ class RayPPOTrainer(object):
             max_tool_response_length=self.config.data.max_tool_response_length,
             num_gpus=self.config.trainer.n_gpus_per_node,
             use_batch_tool_calls=self.config.tool.use_batch_tool_calls,
+            tool_call_start=self.config.tool.tool_call_start,
+            tool_call_end=self.config.tool.tool_call_end,
+            tool_response_start=self.config.tool.tool_response_start,
+            tool_response_end=self.config.tool.tool_response_end,
+            tool_chat_template_apply=self.config.tool.tool_chat_template_apply,
+            tool_custom_response_template=self.config.tool.tool_custom_response_template,
         )
 
         generation_manager = ToolGenerationManager(

@@ -183,9 +183,11 @@ class ToolRLDataset(RLHFDataset):
                  chat_template_func=None,
                  return_raw_chat=False,
                  truncation='error',
-                 tool_env: ToolEnv = None):
+                 tool_env: ToolEnv = None,
+                 use_custom_tool_format_func=False):
         self.tool_env = tool_env
         self.tools = tool_env.tool_desc
+        self.use_custom_tool_format_func = use_custom_tool_format_func
         super().__init__(parquet_files, tokenizer, prompt_key, max_prompt_length, filter_prompts, cache_dir, chat_template_func, return_raw_chat, truncation)
 
     def __getitem__(self, item):
@@ -196,7 +198,17 @@ class ToolRLDataset(RLHFDataset):
 
         chat = row_dict.pop(self.prompt_key)
 
-        prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, tools=self.tools, add_generation_prompt=True, tokenize=False)
+        if self.use_custom_tool_format_func:
+            if chat[0]['role'] == 'system':
+                chat[0]['content'] = chat[0]['content'] + self.tool_env.tools_format_func()
+            else:
+                system_msg = [{"role": "system", "content": self.tool_env.tools_format_func()}]
+                # Convert chat to a list if it's not already one
+                chat_list = chat.tolist() if hasattr(chat, 'tolist') else list(chat)
+                chat = system_msg + chat_list
+            prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
+        else:
+            prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, tools=self.tools, add_generation_prompt=True, tokenize=False)
 
         input_ids, attention_mask = verl_F.tokenize_and_postprocess_data(prompt=prompt_with_chat_template,
                                                                          tokenizer=self.tokenizer,

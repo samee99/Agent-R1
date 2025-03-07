@@ -28,7 +28,13 @@ class ToolGenerationConfig:
     num_gpus: int
     # use_parallel_tool_calls: bool = False
     use_batch_tool_calls: bool = False  # New option for batch execution
-
+    tool_call_start: str = "<tool_call>"
+    tool_call_end: str = "</tool_call>"
+    tool_response_start: str = "<tool_response>"
+    tool_response_end: str = "</tool_response>"
+    tool_chat_template_apply: bool = False
+    tool_custom_response_template: str = ""
+    
 class ToolGenerationManager:
     """Manager for handling LLM tool-based generation and interaction"""
     
@@ -60,8 +66,7 @@ class ToolGenerationManager:
             padding="longest"
         )['input_ids']
 
-    @staticmethod
-    def _process_tool_call(responses_str) -> Tuple[List[str], List[bool]]:
+    def _process_tool_call(self, responses_str) -> Tuple[List[str], List[bool]]:
         """
         Process a list of response strings to extract the first tool call
         while preserving the rest of the string content.
@@ -78,16 +83,16 @@ class ToolGenerationManager:
             match = re.search(tool_pattern, resp, re.DOTALL)
             
             if not match:
-                return resp + '<|im_end|>', False  # No tool call found
+                return resp, False  # No tool call found
             
-            resp = resp.split('</tool_call>')[0] + '</tool_call>'
+            resp = resp.split(self.config.tool_call_end)[0] + self.config.tool_call_end
             # tool_content = match.group(0)
             
             # Replace all subsequent answer tag pairs with their content
             # rest_of_string = resp[match.end():]
             # cleaned_rest = re.sub(r'<tool_call>(.*?)</tool_call>', r'\1', rest_of_string, flags=re.DOTALL)
             
-            return resp + '<|im_end|>', True
+            return resp, True
         
         # Process each response string
         return [process_single_response(resp)[0] for resp in responses_str], [process_single_response(resp)[1] for resp in responses_str]
@@ -140,8 +145,15 @@ class ToolGenerationManager:
             # Step the environment using the agent's response
             result = step(env, resp)
             tool_response = result[0]  # Extract observation from (observation, reward, done, info)
-            tool_responses[i] = ToolEnv.formulate_output(tool_response)
-            
+            if self.config.tool_chat_template_apply:
+                tool_response = self.tokenizer.apply_chat_template(
+                    [{"role": "tool", "content": tool_response}],
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
+                tool_responses[i] = self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-2] + self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-1]
+            else:
+                tool_responses[i] = self.config.tool_custom_response_template.format(tool_response=tool_response)            
         return tool_responses
     
     # def _execute_tool_calls_parallel(self, response_strs: List[str], 
@@ -214,8 +226,16 @@ class ToolGenerationManager:
             if result is None:
                 tool_responses[idx] = ""
             else:
-                observation = result[0]  # Extract observation from (observation, reward, done, info)
-                tool_responses[idx] = ToolEnv.formulate_output(observation)
+                tool_response = result[0]  # Extract observation from (observation, reward, done, info)
+                if self.config.tool_chat_template_apply:
+                    tool_response = self.tokenizer.apply_chat_template(
+                        [{"role": "tool", "content": tool_response}],
+                        tokenize=False,
+                        add_generation_prompt=True
+                    )
+                    tool_responses[idx] = self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-2] + self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-1]
+                else:
+                    tool_responses[idx] = self.config.tool_custom_response_template.format(tool_response=tool_response)
                 
         return tool_responses
     
