@@ -121,6 +121,10 @@ class Tool(ABC):
         Returns:
             (is_valid, error_message)
         """
+        # Check if args is a Dict
+        if not isinstance(args, dict):
+            return False, "Arguments must be a dictionary"
+
         # Check required parameters
         required_params = self.parameters.get("required", [])
         for param in required_params:
