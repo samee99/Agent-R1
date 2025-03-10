@@ -89,7 +89,8 @@ actor_rollout_ref:
     # for hf rollout
     do_sample: True
     # number of responses (i.e. num sample times)
-    n: 1 # > 1 for grpo
+    n: 1 # > 1 for grpo, deprecated, please use n_repeat
+    n_repeat: 1 # > 1 for grpo (instead of n)
     custom_stop_words: []
 
 critic:
@@ -158,6 +159,7 @@ algorithm:
     kl_coef: 0.001
 
 trainer:
+  debug_mode: False
   total_epochs: 30
   total_training_steps: null
   project_name: verl_examples
@@ -187,7 +189,8 @@ tool:
   tool_response_end: </tool_response>
   tool_chat_template_apply: False
   tool_custom_response_template: |
-    <|im_start|>user<tool_response>
+    <|im_start|>user
+    <tool_response>
     {tool_response}
     </tool_response><|im_end|>
     <|im_start|>assistant

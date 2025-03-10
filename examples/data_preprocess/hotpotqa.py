@@ -46,9 +46,9 @@ if __name__ == '__main__':
     parser.add_argument('--hdfs_dir', default=None)
     parser.add_argument('--download_method', choices=['huggingface', 'direct'], default='direct',
                         help='Method to download the dataset: huggingface or direct')
-    parser.add_argument('--train_size', type=int, default=None,
+    parser.add_argument('--train_size', type=int, default=12800,
                         help='Number of training samples to use')
-    parser.add_argument('--val_size', type=int, default=64,
+    parser.add_argument('--val_size', type=int, default=128,
                         help='Number of validation samples to use')
 
     args = parser.parse_args()

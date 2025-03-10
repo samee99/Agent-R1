@@ -101,14 +101,14 @@ def compute_score_format(solution_str):
                 # soft_think_match = re.search(r'<think>(.*?)</think>(.*?)<tool_call>(.*?)</tool_call>', assistant_block, re.DOTALL)
                 if think_match:
                     # format_reward += 0.2 * (0.8 ** i)
-                    format_reward = 0.5
+                    format_reward += 0.4
 
         # Check the last assistant block contains <answer> tags
         if assistant_blocks:  # 确保有至少一个assistant块
             last_assistant_block = assistant_blocks[-1]
             think_answer_match = re.search(r'^<think>(.*?)</think>\n<answer>(.*?)</answer>$', last_assistant_block, re.DOTALL)
             if think_answer_match:
-                format_reward += 0.1
+                format_reward += 0.2
     except Exception as e:
         print(f"[DEBUG] Error in compute_score_format: {e}")
         return 0.0
@@ -170,7 +170,7 @@ def compute_score_format_answer(solution_str, ground_truth):
     try:
         format_reward = compute_score_format(solution_str)
         answer_reward = compute_score_answer(solution_str, ground_truth)
-        return min(format_reward, 0.5) + answer_reward
+        return min(format_reward, 0.5) * answer_reward
     except Exception as e:
         print(f"[DEBUG] Error in compute_score_format_answer: {e}")
         return 0.0

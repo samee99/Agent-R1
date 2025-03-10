@@ -1047,29 +1047,99 @@ class RayPPOTrainer(object):
             config=gen_config,
         )
 
+        if self.config.trainer.debug_mode:
+            breakpoint()
+
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
+                # Implement by OYJ
+
+                # metrics = {}
+                # timing_raw = {}
+
+                # batch: DataProto = DataProto.from_single_dict(batch_dict)
+
+                # envs = [self.env.copy() for _ in range(len(batch))]
+
+                # # pop those keys for generation
+                # gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
+
+                # with _timer('step', timing_raw=timing_raw):
+                #     first_input_ids = gen_batch.batch['input_ids'][:, -gen_config.max_start_length:].clone().long()
+                #     # generate a batch
+                #     with _timer('gen', timing_raw):
+                #         generation_manager.timing_raw = timing_raw
+                #         final_gen_batch_output = generation_manager.run_llm_loop(
+                #             gen_batch=gen_batch,
+                #             envs=envs,
+                #             initial_input_ids=first_input_ids,
+                #         )
+
+                #     for key in final_gen_batch_output.batch.keys():
+                #         final_gen_batch_output.batch[key] = final_gen_batch_output.batch[key].long()
+                    
+                #     with torch.no_grad():
+                #         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
+                #         final_gen_batch_output = final_gen_batch_output.union(output)
+
+                #     # batch.non_tensor_batch['reward'] = np.array([0 for _ in range(len(envs))], dtype=object)
+                #     # for idx, env in enumerate(envs):
+                #     #     batch.non_tensor_batch['reward'][idx] = env.reward
+
+                #     if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
+                #         # TODO: adapt to new generation manager
+                #         with _timer('gen_max', timing_raw):
+                #             gen_baseline_batch = deepcopy(gen_batch)
+                #             gen_baseline_batch.meta_info['do_sample'] = False
+                #             gen_baseline_output = self.actor_rollout_wg.generate_sequences(gen_baseline_batch)
+
+                #             batch = batch.union(gen_baseline_output)
+                #             reward_baseline_tensor = self.reward_fn(batch)
+                #             reward_baseline_tensor = reward_baseline_tensor.sum(dim=-1)
+
+                #             batch.pop(batch_keys=list(gen_baseline_output.batch.keys()))
+
+                #             batch.batch['reward_baselines'] = reward_baseline_tensor
+
+                #             del gen_baseline_batch, gen_baseline_output
+
+                #     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
+                #                                              dtype=object)
+                #     # repeat to align with repeated responses in rollout
+                #     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
+                #     batch = batch.union(final_gen_batch_output)
+
+                # Implement by LYC
                 metrics = {}
                 timing_raw = {}
 
+                # 1. 加载原始batch并分配UUID
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
+                batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
+                                                        dtype=object)
 
+                # 2. 先进行repeat操作, 使用 n_repeat 替代 rollout.n
+                batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_repeat, interleave=True)
+
+                # 3. 创建对应数量的环境
                 envs = [self.env.copy() for _ in range(len(batch))]
 
-                # pop those keys for generation
+                # 4. 准备生成所需的数据
                 gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
 
-                with _timer('step', timing_raw):
+                with _timer('step', timing_raw=timing_raw):
                     first_input_ids = gen_batch.batch['input_ids'][:, -gen_config.max_start_length:].clone().long()
-                    # generate a batch
+                    
+                    # 5. 使用扩充后的batch进行生成
                     with _timer('gen', timing_raw):
                         generation_manager.timing_raw = timing_raw
                         final_gen_batch_output = generation_manager.run_llm_loop(
                             gen_batch=gen_batch,
-                            envs=envs,
+                            envs=envs,  # 已经是扩充后的环境数量
                             initial_input_ids=first_input_ids,
                         )
 
+                    # 6. 后续处理
                     for key in final_gen_batch_output.batch.keys():
                         final_gen_batch_output.batch[key] = final_gen_batch_output.batch[key].long()
                     
@@ -1077,9 +1147,8 @@ class RayPPOTrainer(object):
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
                         final_gen_batch_output = final_gen_batch_output.union(output)
 
-
+                    # 7. REMAX相关处理
                     if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
-                        # TODO: adapt to new generation manager
                         with _timer('gen_max', timing_raw):
                             gen_baseline_batch = deepcopy(gen_batch)
                             gen_baseline_batch.meta_info['do_sample'] = False
@@ -1090,17 +1159,12 @@ class RayPPOTrainer(object):
                             reward_baseline_tensor = reward_baseline_tensor.sum(dim=-1)
 
                             batch.pop(batch_keys=list(gen_baseline_output.batch.keys()))
-
                             batch.batch['reward_baselines'] = reward_baseline_tensor
 
                             del gen_baseline_batch, gen_baseline_output
-
-                    batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
-                                                             dtype=object)
-                    # repeat to align with repeated responses in rollout
-                    batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
-                    batch = batch.union(final_gen_batch_output)
-
+                    # 8. 最终合并
+                    batch = batch.union(final_gen_batch_output)  
+                       
                     # balance the number of valid tokens on each dp rank.
                     # Note that this breaks the order of data inside the batch.
                     # Please take care when you implement group based adv computation such as GRPO and rloo

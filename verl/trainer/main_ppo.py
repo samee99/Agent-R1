@@ -17,7 +17,7 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 
 from agent_r1.tool import ToolEnv
-from agent_r1.tool.tools import SearchTool, CalculatorTool
+from agent_r1.tool.tools import SearchTool, CalculatorTool, WikiSearchTool
 
 import ray
 import hydra
@@ -71,6 +71,7 @@ class RewardManager():
             sequences_str = self.tokenizer.decode(sequences, skip_special_tokens=False)
             pad_token_id = self.tokenizer.pad_token_id
             sequences_str = sequences_str.split(self.tokenizer.decode([pad_token_id]))[0]
+
             if i == 0:
                 print(f"[DEBUG] sequences_str: {sequences_str}")
 
@@ -83,6 +84,8 @@ class RewardManager():
             em_score = compute_score_em(solution_str=sequences_str, ground_truth=ground_truth)
             format_score = compute_score_format(solution_str=sequences_str)
 
+            # if data_item.non_tensor_batch['reward'] is not None:
+            #     score = data_item.non_tensor_batch['reward'] + score
             em_lst.append(em_score)
             format_lst.append(format_score)
 
