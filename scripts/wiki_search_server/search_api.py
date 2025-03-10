@@ -137,7 +137,7 @@ async def startup_event():
     model = FlagAutoModel.from_finetuned(
         'BAAI/bge-large-en-v1.5',
         query_instruction_for_retrieval="Represent this sentence for searching relevant passages: ",
-        device="cuda:7"
+        device="cpu"
     )
     
     # 加载索引
