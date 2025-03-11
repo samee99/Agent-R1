@@ -259,7 +259,7 @@ def compute_data_metrics(batch, use_critic=True):
         return_var = torch.var(valid_returns)
 
     format_scores = batch.batch['format_scores']
-    em_scores = batch.batch['em_scores'].float()
+    answer_scores = batch.batch['answer_scores'].float()
     turns = batch.batch['turns'].float()
     metrics = {
         # score
@@ -305,9 +305,9 @@ def compute_data_metrics(batch, use_critic=True):
         'critic/format_score/min': torch.min(format_scores).detach().item(),
 
         # em score
-        'critic/em_score/mean': torch.mean(em_scores).detach().item(),
-        'critic/em_score/max': torch.max(em_scores).detach().item(),
-        'critic/em_score/min': torch.min(em_scores).detach().item(),
+        'critic/answer_score/mean': torch.mean(answer_scores).detach().item(),
+        'critic/answer_score/max': torch.max(answer_scores).detach().item(),
+        'critic/answer_score/min': torch.min(answer_scores).detach().item(),
 
         # turns
         'turns/mean': torch.mean(turns).detach().item(),
@@ -734,7 +734,6 @@ class RayPPOTrainer(object):
             tool_call_end=self.config.tool.tool_call_end,
             tool_response_start=self.config.tool.tool_response_start,
             tool_response_end=self.config.tool.tool_response_end,
-            tool_chat_template_apply=self.config.tool.tool_chat_template_apply,
             tool_custom_response_template=self.config.tool.tool_custom_response_template,
         )
 
@@ -777,7 +776,7 @@ class RayPPOTrainer(object):
                 
                 # evaluate using reward_function
                 try:
-                    reward_tensor, em_lst, format_lst = self.val_reward_fn(test_batch)
+                    reward_tensor, answer_lst, format_lst = self.val_reward_fn(test_batch)
                 except:
                     print(f"[Error] Something wrong with the reward function")
                     print(test_batch)
@@ -794,7 +793,7 @@ class RayPPOTrainer(object):
         data_sources = np.concatenate(data_source_lst, axis=0)
         # evaluate test_score based on data source
         data_source_reward = {}
-        data_source_em = {}
+        data_source_answer = {}
         data_source_format = {}
         data_source_turns = {}
         for i in range(reward_tensor.shape[0]):
@@ -802,9 +801,9 @@ class RayPPOTrainer(object):
             if data_source not in data_source_reward:
                 data_source_reward[data_source] = []
             data_source_reward[data_source].append(reward_tensor[i].item())
-            if data_source not in data_source_em:
-                data_source_em[data_source] = []
-            data_source_em[data_source].append(em_lst[i])
+            if data_source not in data_source_answer:
+                data_source_answer[data_source] = []
+            data_source_answer[data_source].append(answer_lst[i])
             if data_source not in data_source_format:
                 data_source_format[data_source] = []
             data_source_format[data_source].append(format_lst[i])
@@ -815,8 +814,8 @@ class RayPPOTrainer(object):
         metric_dict = {}
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
-        for data_source, ems in data_source_em.items():
-            metric_dict[f'val/em_score/{data_source}'] = np.mean(ems)
+        for data_source, answers in data_source_answer.items():
+            metric_dict[f'val/answer_score/{data_source}'] = np.mean(answers)
         for data_source, formats in data_source_format.items():
             metric_dict[f'val/format_score/{data_source}'] = np.mean(formats)
         for data_source, turns in data_source_turns.items():
@@ -1037,7 +1036,6 @@ class RayPPOTrainer(object):
             tool_call_end=self.config.tool.tool_call_end,
             tool_response_start=self.config.tool.tool_response_start,
             tool_response_end=self.config.tool.tool_response_end,
-            tool_chat_template_apply=self.config.tool.tool_chat_template_apply,
             tool_custom_response_template=self.config.tool.tool_custom_response_template,
         )
 
@@ -1047,99 +1045,39 @@ class RayPPOTrainer(object):
             config=gen_config,
         )
 
-        if self.config.trainer.debug_mode:
-            breakpoint()
-
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
-                # Implement by OYJ
 
-                # metrics = {}
-                # timing_raw = {}
-
-                # batch: DataProto = DataProto.from_single_dict(batch_dict)
-
-                # envs = [self.env.copy() for _ in range(len(batch))]
-
-                # # pop those keys for generation
-                # gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
-
-                # with _timer('step', timing_raw=timing_raw):
-                #     first_input_ids = gen_batch.batch['input_ids'][:, -gen_config.max_start_length:].clone().long()
-                #     # generate a batch
-                #     with _timer('gen', timing_raw):
-                #         generation_manager.timing_raw = timing_raw
-                #         final_gen_batch_output = generation_manager.run_llm_loop(
-                #             gen_batch=gen_batch,
-                #             envs=envs,
-                #             initial_input_ids=first_input_ids,
-                #         )
-
-                #     for key in final_gen_batch_output.batch.keys():
-                #         final_gen_batch_output.batch[key] = final_gen_batch_output.batch[key].long()
-                    
-                #     with torch.no_grad():
-                #         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
-                #         final_gen_batch_output = final_gen_batch_output.union(output)
-
-                #     # batch.non_tensor_batch['reward'] = np.array([0 for _ in range(len(envs))], dtype=object)
-                #     # for idx, env in enumerate(envs):
-                #     #     batch.non_tensor_batch['reward'][idx] = env.reward
-
-                #     if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
-                #         # TODO: adapt to new generation manager
-                #         with _timer('gen_max', timing_raw):
-                #             gen_baseline_batch = deepcopy(gen_batch)
-                #             gen_baseline_batch.meta_info['do_sample'] = False
-                #             gen_baseline_output = self.actor_rollout_wg.generate_sequences(gen_baseline_batch)
-
-                #             batch = batch.union(gen_baseline_output)
-                #             reward_baseline_tensor = self.reward_fn(batch)
-                #             reward_baseline_tensor = reward_baseline_tensor.sum(dim=-1)
-
-                #             batch.pop(batch_keys=list(gen_baseline_output.batch.keys()))
-
-                #             batch.batch['reward_baselines'] = reward_baseline_tensor
-
-                #             del gen_baseline_batch, gen_baseline_output
-
-                #     batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
-                #                                              dtype=object)
-                #     # repeat to align with repeated responses in rollout
-                #     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
-                #     batch = batch.union(final_gen_batch_output)
-
-                # Implement by LYC
                 metrics = {}
                 timing_raw = {}
 
-                # 1. 加载原始batch并分配UUID
+                # 1. Load original batch and assign UUID
                 batch: DataProto = DataProto.from_single_dict(batch_dict)
                 batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
                                                         dtype=object)
 
-                # 2. 先进行repeat操作, 使用 n_repeat 替代 rollout.n
+                # 2. Perform repeat operation first, using n_repeat instead of rollout.n
                 batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_repeat, interleave=True)
 
-                # 3. 创建对应数量的环境
+                # 3. Create corresponding number of environments
                 envs = [self.env.copy() for _ in range(len(batch))]
 
-                # 4. 准备生成所需的数据
+                # 4. Prepare data needed for generation
                 gen_batch = batch.pop(batch_keys=['input_ids', 'attention_mask', 'position_ids'])
 
                 with _timer('step', timing_raw=timing_raw):
                     first_input_ids = gen_batch.batch['input_ids'][:, -gen_config.max_start_length:].clone().long()
                     
-                    # 5. 使用扩充后的batch进行生成
+                    # 5. Use expanded batch for generation
                     with _timer('gen', timing_raw):
                         generation_manager.timing_raw = timing_raw
                         final_gen_batch_output = generation_manager.run_llm_loop(
                             gen_batch=gen_batch,
-                            envs=envs,  # 已经是扩充后的环境数量
+                            envs=envs,  # Already expanded to match environment count
                             initial_input_ids=first_input_ids,
                         )
 
-                    # 6. 后续处理
+                    # 6. Post-processing
                     for key in final_gen_batch_output.batch.keys():
                         final_gen_batch_output.batch[key] = final_gen_batch_output.batch[key].long()
                     
@@ -1147,7 +1085,7 @@ class RayPPOTrainer(object):
                         output = self.actor_rollout_wg.compute_log_prob(final_gen_batch_output)
                         final_gen_batch_output = final_gen_batch_output.union(output)
 
-                    # 7. REMAX相关处理
+                    # 7. REMAX related processing
                     if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
                         with _timer('gen_max', timing_raw):
                             gen_baseline_batch = deepcopy(gen_batch)
@@ -1162,7 +1100,7 @@ class RayPPOTrainer(object):
                             batch.batch['reward_baselines'] = reward_baseline_tensor
 
                             del gen_baseline_batch, gen_baseline_output
-                    # 8. 最终合并
+                    # 8. Final merge
                     batch = batch.union(final_gen_batch_output)  
                        
                     # balance the number of valid tokens on each dp rank.
@@ -1204,9 +1142,9 @@ class RayPPOTrainer(object):
                             batch = batch.union(reward_tensor)
 
                         # we combine with rule-based rm
-                        reward_tensor, em_lst, format_lst = self.reward_fn(batch)
+                        reward_tensor, answer_lst, format_lst = self.reward_fn(batch)
                         batch.batch['token_level_scores'] = reward_tensor
-                        batch.batch['em_scores'] = torch.tensor(em_lst)
+                        batch.batch['answer_scores'] = torch.tensor(answer_lst)
                         batch.batch['format_scores'] = torch.tensor(format_lst)
 
                         # compute rewards. apply_kl_penalty if available
@@ -1231,9 +1169,6 @@ class RayPPOTrainer(object):
                             critic_output = self.critic_wg.update_critic(batch)
                         critic_output_metrics = reduce_metrics(critic_output.meta_info['metrics'])
                         metrics.update(critic_output_metrics)
-
-                    print(f"[DEBUG] batch keys: {batch.batch.keys()}")
-                    print(f"[DEBUG] batch: {batch.batch}")
 
                     # implement critic warmup
                     if self.config.trainer.critic_warmup <= self.global_steps:

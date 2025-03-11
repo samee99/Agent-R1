@@ -10,3 +10,13 @@ __all__ = [
     'CalculatorTool',
     'WikiSearchTool',
 ] 
+
+def _default_tools(env):
+    if env == 'search':
+        return [SearchTool()]
+    elif env == 'calculator':
+        return [CalculatorTool()]
+    elif env == 'wikisearch':
+        return [WikiSearchTool()]
+    else:
+        raise NotImplementedError

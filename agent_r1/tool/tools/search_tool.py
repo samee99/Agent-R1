@@ -13,20 +13,6 @@ import faiss
 from FlagEmbedding import FlagAutoModel
 import json
 
-# Load the index from the HF Hub
-# embeddings = Embeddings()
-# embeddings.load(provider="huggingface-hub", container="neuml/txtai-wikipedia")
-
-# Run a search
-# embeddings.search("Roman Empire")
-
-# Run a search matching only the Top 1% of articles
-# embeddings.search("""
-#    SELECT id, text, score, percentile FROM txtai WHERE similar('Boston') AND
-#    percentile >= 0.99
-# """)
-
-
 class SearchTool(Tool):
     """
     Tool for simulating internet searches using the NeuML/txtai-wikipedia model
@@ -57,11 +43,6 @@ class SearchTool(Tool):
         }
         
         super().__init__(name, description, parameters)
-        
-        # Initialize search database
-        # self.embeddings = Embeddings()
-        # self.embeddings.load(provider="huggingface-hub", container="neuml/txtai-wikipedia")
-        # print(f"[DEBUG] EMBEDDINGS LOADED")
         print(f"[DEBUG] EMBEDDINGS LOADING")
         self.index = faiss.read_index("/home/yanruiran/workspace/Agent-R1/data/corpus/hotpotqa/index.bin")
         self.model = FlagAutoModel.from_finetuned(
@@ -89,18 +70,9 @@ class SearchTool(Tool):
         Returns:
             Formatted search results
         """
-        # query = args.get("query", "").strip()
-        # limit = args.get("limit", 5)
-        
-
-        # # results = self.embeddings.search(query, limit=limit)
-        # dist, ids = self.index.search(query, limit)
-        
-        # return self._format_results(results)
         pass
     
     def batch_execute(self, args_list: List[Dict]) -> List[str]:
-        # [{'query':xxx, 'limit':xxx},{}]
         queries = [x["query"] for x in args_list]
         embeddings = self.model.encode_queries(queries)
         dist, ids = self.index.search(embeddings, 5) # ids: b*5
@@ -135,18 +107,8 @@ class SearchTool(Tool):
         Returns:
             Reward value
         """
-        # # Basic reward calculation based on whether results were found
-        # if "No results found" in result:
-        #     return 0.1  # Small reward for trying
-        
-        # # Count number of results found
-        # result_count = result.count("**")
-        
-        # # Base reward for finding results
-        # reward = 0.5
-        
-        # # Additional reward based on number of results (diminishing returns)
-        # reward += min(0.5, 0.1 * result_count)
-        
-        # return reward
-        return 0.0
+        # valid tool call
+        if "results" in result:
+            return 0.0
+        else:
+            return 0.0

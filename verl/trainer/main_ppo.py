@@ -17,14 +17,13 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 
 from agent_r1.tool import ToolEnv
-from agent_r1.tool.tools import SearchTool, CalculatorTool, WikiSearchTool
+from agent_r1.tool.tools import _default_tools
 
 import ray
 import hydra
 
 from verl import DataProto
-from verl.utils.reward_score.qa_em_and_format import compute_score_format, compute_score_em, compute_score_format_answer
-# from verl.utils.reward_score.gsm8k import compute_score_format_answer, compute_score_em, compute_score_format
+from verl.utils.reward_score import _default_compute_score_format, _default_compute_score_answer, _default_compute_score_format_answer
 import torch
 
 class RewardManager():
@@ -43,7 +42,7 @@ class RewardManager():
             return data.batch['rm_scores']
 
         reward_tensor = torch.zeros_like(data.batch['responses'], dtype=torch.float32)
-        em_lst = []
+        answer_lst = []
         format_lst = []
 
         already_print_data_sources = {}
@@ -72,25 +71,19 @@ class RewardManager():
             pad_token_id = self.tokenizer.pad_token_id
             sequences_str = sequences_str.split(self.tokenizer.decode([pad_token_id]))[0]
 
-            if i == 0:
-                print(f"[DEBUG] sequences_str: {sequences_str}")
-
             ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
 
             # select rm_score
             data_source = data_item.non_tensor_batch['data_source']
 
-            score = compute_score_format_answer(solution_str=sequences_str, ground_truth=ground_truth)
-            em_score = compute_score_em(solution_str=sequences_str, ground_truth=ground_truth)
-            format_score = compute_score_format(solution_str=sequences_str)
+            score = _default_compute_score_format_answer(data_source=data_source, solution_str=sequences_str, ground_truth=ground_truth)
+            answer_score = _default_compute_score_answer(data_source=data_source, solution_str=sequences_str, ground_truth=ground_truth)
+            format_score = _default_compute_score_format(data_source=data_source, solution_str=sequences_str)
 
-            # if data_item.non_tensor_batch['reward'] is not None:
-            #     score = data_item.non_tensor_batch['reward'] + score
-            em_lst.append(em_score)
+            answer_lst.append(answer_score)
             format_lst.append(format_score)
 
             reward_tensor[i, valid_response_length - 1] = score
-            # all_scores.append(score)
 
             if data_source not in already_print_data_sources:
                 already_print_data_sources[data_source] = 0
@@ -98,7 +91,7 @@ class RewardManager():
             if already_print_data_sources[data_source] < self.num_examine:
                 already_print_data_sources[data_source] += 1
 
-        return reward_tensor, em_lst, format_lst
+        return reward_tensor, answer_lst, format_lst
     
 
 
@@ -198,8 +191,8 @@ def main_task(config, compute_score=None):
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
-    env = ToolEnv(tools=[SearchTool()], max_turns=config.tool.max_turns)
-    # env = ToolEnv(tools=[CalculatorTool()], max_turns=config.tool.max_turns)
+    tools = _default_tools(config.tool.env)
+    env = ToolEnv(tools=tools, max_turns=config.tool.max_turns)
 
     trainer = RayPPOTrainer(config=config,
                             tokenizer=tokenizer,

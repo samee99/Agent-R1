@@ -27,8 +27,6 @@ def step(env: 'ToolEnv', action_text: str):
     """
     env.steps_taken += 1
     action = env.extract_tool_call(action_text)
-
-    print(f"[DEBUG] ACTION: {action}")
     
     if action == env.INVALID_ACTION:
         result = "Invalid tool call format. Please use <tool_call>{\"name\": \"tool_name\", \"arguments\": {params_json}}</tool_call> format."
@@ -134,9 +132,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
     # First pass: extract tool calls and group by tool name
     for i, (env, action_text) in enumerate(zip(envs, action_texts)):
         # Extract the tool call
-        print(f"[DEBUG] ACTION TEXT: {action_text}")
         action = env.extract_tool_call(action_text)
-        print(f"[DEBUG] ACTION: {action}")
         action_map[i] = (env, action, action_text)
         
         # Handle invalid actions

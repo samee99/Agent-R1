@@ -32,7 +32,6 @@ class ToolGenerationConfig:
     tool_call_end: str = "</tool_call>"
     tool_response_start: str = "<tool_response>"
     tool_response_end: str = "</tool_response>"
-    tool_chat_template_apply: bool = False
     tool_custom_response_template: str = ""
     
 class ToolGenerationManager:
@@ -144,54 +143,8 @@ class ToolGenerationManager:
             # Step the environment using the agent's response
             result = step(env, resp)
             tool_response = result[0]  # Extract observation from (observation, reward, done, info)
-            if self.config.tool_chat_template_apply:
-                tool_response = self.tokenizer.apply_chat_template(
-                    [{"role": "tool", "content": tool_response}],
-                    tokenize=False,
-                    add_generation_prompt=True
-                )
-                tool_responses[i] = '\n' + tool_response.split(self.tokenizer.eos_token)[-2] + self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-1]
-            else:
-                tool_responses[i] = self.config.tool_custom_response_template.format(tool_response=tool_response)            
+            tool_responses[i] = self.config.tool_custom_response_template.format(tool_response=tool_response)            
         return tool_responses
-    
-    # def _execute_tool_calls_parallel(self, response_strs: List[str], 
-    #                                 envs: List[ToolEnv], 
-    #                                 active_mask: torch.Tensor) -> List[str]:
-    #     """Execute tool calls in parallel using Ray."""
-    #     # Initialize Ray if not already initialized
-    #     if not ray.is_initialized():
-    #         ray.init(ignore_reinit_error=True)
-        
-    #     # Convert torch tensor to list of booleans if needed
-    #     active_list = active_mask.tolist() if isinstance(active_mask, torch.Tensor) else active_mask
-        
-    #     # Define a remote function to process a single environment step
-    #     @ray.remote
-    #     def process_env_step(resp, env):
-    #         # Step the environment using the agent's response
-    #         result = step(env, resp)
-    #         return result[0]  # Return only the observation
-        
-    #     # Create a list to store results
-    #     tool_responses = [""] * len(response_strs)
-    #     futures_with_indices = []
-        
-    #     # Submit tasks to Ray
-    #     for i, (resp, env, active) in enumerate(zip(response_strs, envs, active_list)):
-    #         if not active:
-    #             continue
-            
-    #         # Submit the task to Ray for parallel execution
-    #         future = process_env_step.remote(resp, env)
-    #         futures_with_indices.append((future, i))
-        
-    #     # Wait for all futures to complete and collect results
-    #     for future, idx in futures_with_indices:
-    #         observation = ray.get(future)
-    #         tool_responses[idx] = ToolEnv.formulate_output(observation)
-        
-    #     return tool_responses
     
     def _execute_tool_calls_batch(self, response_strs: List[str], 
                                  envs: List[ToolEnv], 
@@ -226,15 +179,7 @@ class ToolGenerationManager:
                 tool_responses[idx] = ""
             else:
                 tool_response = result[0]  # Extract observation from (observation, reward, done, info)
-                if self.config.tool_chat_template_apply:
-                    tool_response = self.tokenizer.apply_chat_template(
-                        [{"role": "tool", "content": tool_response}],
-                        tokenize=False,
-                        add_generation_prompt=True
-                    )
-                    tool_responses[idx] = self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-2] + self.tokenizer.eos_token + '\n' + tool_response.split(self.tokenizer.eos_token)[-1]
-                else:
-                    tool_responses[idx] = self.config.tool_custom_response_template.format(tool_response=tool_response)
+                tool_responses[idx] = self.config.tool_custom_response_template.format(tool_response=tool_response)
         return tool_responses
     
     def _update_rolling_state(self, rollings, cur_responses: torch.Tensor, 
@@ -338,11 +283,8 @@ class ToolGenerationManager:
         active_num_list = [active_mask.sum().item()]
         rollings = gen_batch
 
-        # print(f"[DEBUG] BATCH SIZE: {batch_size}")
-
         # Main generation loop
         for step in range(self.config.max_turns):
-            # print(f"[DEBUG] ACTIVE MASK SHAPE: {active_mask.shape}")
             if not active_mask.sum():
                 break
             rollings.batch = self.tensor_fn.cut_to_effective_len(
@@ -358,20 +300,12 @@ class ToolGenerationManager:
 
             meta_info = gen_output.meta_info            
             responses_ids, responses_str, new_active_masks = self._postprocess_responses(gen_output.batch['responses'])
-
-            # print(f"[DEBUG] RESPONSES IDS SHAPE: {responses_ids.shape}")
-            for i in range(len(responses_str)):
-                print(f"[DEBUG] RESPONSES STR EXAMPLE: {responses_str[i]}")
-
             responses_ids, responses_str = self.tensor_fn._example_level_pad(responses_ids, responses_str, active_mask)
 
             active_mask[active_mask.clone()] = new_active_masks
 
             turns[active_mask] += 1
 
-            # if self.config.use_parallel_tool_calls:
-            #     # Use parallel execution for tool calls
-            #     tool_responses = self._execute_tool_calls_parallel(responses_str, envs, active_mask)
             if self.config.use_batch_tool_calls:
                 # Use batch execution for tool calls
                 tool_responses = self._execute_tool_calls_batch(responses_str, envs, active_mask)
@@ -379,12 +313,8 @@ class ToolGenerationManager:
                 # Use sequential execution for tool calls
                 tool_responses = self._execute_tool_calls(responses_str, envs, active_mask)
 
-            print(f"[DEBUG] TOOL RESPONSES EXAMPLE: {tool_responses[0]}")
-
             active_num_list.append(active_mask.sum().item())
             tool_responses_ids = self._process_tool_responses(tool_responses)
-
-            # print(f"[DEBUG] TOOL RESPONSES IDS SHAPE: {tool_responses_ids.shape}")
             
             # Update states
             rollings = self._update_rolling_state(

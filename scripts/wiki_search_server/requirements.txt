@@ -6,3 +6,4 @@ faiss-cpu
 FlagEmbedding
 requests
 tqdm
+langchain

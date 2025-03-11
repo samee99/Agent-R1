@@ -11,24 +11,6 @@ import json
 
 from agent_r1.tool.tool_base import Tool
 
-# from txtai.embeddings import Embeddings
-import faiss
-from FlagEmbedding import FlagAutoModel
-
-# Load the index from the HF Hub
-# embeddings = Embeddings()
-# embeddings.load(provider="huggingface-hub", container="neuml/txtai-wikipedia")
-
-# Run a search
-# embeddings.search("Roman Empire")
-
-# Run a search matching only the Top 1% of articles
-# embeddings.search("""
-#    SELECT id, text, score, percentile FROM txtai WHERE similar('Boston') AND
-#    percentile >= 0.99
-# """)
-
-
 class WikiSearchTool(Tool):
     """
     Tool for searching Wikipedia using the wiki_search_api
@@ -38,7 +20,7 @@ class WikiSearchTool(Tool):
         """
         Initialize the search tool
         """
-        name = "wiki_search"
+        name = "search"
         description = "Search for information using Wikipedia as a knowledge source."
         parameters = {
             "type": "object",
@@ -47,10 +29,10 @@ class WikiSearchTool(Tool):
                     "type": "string",
                     "description": "Search query"
                 },
-                "limit": {
-                    "type": "integer",
-                    "description": "Maximum number of results to return (default: 5)"
-                }
+                # "limit": {
+                #     "type": "integer",
+                #     "description": "Maximum number of results to return (default: 5)"
+                # }
             },
             "required": ["query"]
         }

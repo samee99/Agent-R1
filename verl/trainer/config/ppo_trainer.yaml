@@ -159,7 +159,6 @@ algorithm:
     kl_coef: 0.001
 
 trainer:
-  debug_mode: False
   total_epochs: 30
   total_training_steps: null
   project_name: verl_examples
@@ -195,4 +194,4 @@ tool:
     </tool_response><|im_end|>
     <|im_start|>assistant
     <think>
-  # tool_custom_response_template: '<｜Tool｜><tool_response>\n{tool_response}\n</tool_response><｜Assistant｜><think>\n'
+  env: search
