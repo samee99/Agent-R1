@@ -138,7 +138,22 @@ bash run_rpp.sh
 bash run_grpo.sh
 ```
 
-This will start the training process using the Qwen2.5-1.5B-Instruct model. The training progress can be monitored through the console output and Weights & Biases dashboard.
+### Results on HotpotQA
+
+#### PPO
+
+![ppo](./image/ppo.jpg)
+
+#### REINFORCE++
+
+![rpp](./image/rpp.jpg)
+
+#### GRPO
+
+![grpo](./image/grpo.jpg)
+
+
+We can see that the model (Qwen2.5-1.5B-Instruct) effectively learns to think and then invoke the tool in multiple rounds when faced with challenging multi-hop questions, ultimately achieving improved the EM results. The effectiveness of different reinforcement learning algorithms varies, but the general trend is the same.
 
 ## Extending Agent-R1 with Your Own Tools and Environments
 
