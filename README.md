@@ -1,5 +1,7 @@
 <h1 align="center"> Agent-R1: Training Powerful LLM Agents with End-to-End Reinforcement Learning </h1>
 
+<p align="center"><img src="./image/agent.png" width="800px" alt="RICO Framework" /></p>
+
 ## Overview
 
 **Reinforcement learning (RL)** has catalyzed the evolution of Large Language Models (LLMs) from simple **Chatbots (Level 1)** to powerful **Reasoners (Level 2)** capable of superhuman performance on complex tasks like mathematics and coding. Models trained with reinforcement learning have demonstrated remarkable abilities to develop complex reasoning strategies through exploration and exploitation, as seen in breakthrough models like DeepSeek's R1, which naturally learns to construct long reasoning chains to solve challenging problems.
