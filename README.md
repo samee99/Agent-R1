@@ -30,6 +30,15 @@ For Agent, the components are more complex:
   - After each tool call, which **naturally creates process-level rewards** based on the quality and effectiveness of tool usage
   - At the end of the complete interaction based on overall task completion
 
+In order to better understand the difference between **Agent** and context of **LLM**, we provide formal definitions for both methods separately:
+![equation](./image/Equation.png)
+where:
+
+- $X$ is the sequence of the current prompt
+- $a_t$ is the token selected from the vocabulary
+- $m$ is the number of tool calls
+- $t_j$ is the number of token responses between the $j-1$th and $j$-th tool calls, $0<t_1+t_2+...+t_m<t$
+  
 This richer reinforcement learning framework allows Agent-R1 to train LLMs that learn effective strategies for when and how to use tools across multi-turn interactions. By optimizing over entire trajectories rather than single responses, we can apply algorithms like PPO, REINFORCE++, and GRPO to develop agents that reason effectively before taking actions.
 
 ## Key Features
