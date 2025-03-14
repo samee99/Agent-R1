@@ -46,22 +46,23 @@ if __name__ == '__main__':
     test_dataset = dataset['test']
 
     instruction_following = """You can use the tools provided to you to answer the question. You can use the tool as many times as you want.
-You must first conduct reasoning inside <think>...</think>. If you get the final answer, you can output the answer inside <answer>...</answer>.
+You must first conduct reasoning inside <think>...</think>. If you need to use the tool, you can use the tool call <tool_call>...</tool_call> to call the tool after <think>...</think>.
+When you have the final answer, you can output the answer inside <answer>...</answer>.
 
 Output format for tool call:
 <think>
-(your reasoning)
+...
 </think>
 <tool_call>
-{"name": <function-name>, "arguments": <args-json-object>}
+...
 </tool_call>
 
 Output format for answer:
 <think>
-(your reasoning)
+...
 </think>
 <answer>
-(final answer)
+...
 </answer>
 """
 
