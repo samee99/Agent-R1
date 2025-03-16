@@ -44,14 +44,14 @@ class SearchTool(Tool):
         
         super().__init__(name, description, parameters)
         print(f"[DEBUG] EMBEDDINGS LOADING")
-        self.index = faiss.read_index("/home/yanruiran/workspace/Agent-R1/data/corpus/hotpotqa/index.bin")
+        self.index = faiss.read_index("/home/ubuntu/filesystem/Agent-R1/data/corpus/hotpotqa/index.bin")
         self.model = FlagAutoModel.from_finetuned(
             'BAAI/bge-large-en-v1.5',
             query_instruction_for_retrieval="Represent this sentence for searching relevant passages: ",
             devices="cpu",   # if not specified, will use all available gpus or cpu when no gpu available
         )
         self.corpus = []
-        with open("/home/yanruiran/workspace/Agent-R1/data/corpus/hotpotqa/hpqa_corpus.jsonl","r") as f:
+        with open("/home/ubuntu/filesystem/Agent-R1/data/corpus/hotpotqa/hpqa_corpus.jsonl","r") as f:
             for idx, line in enumerate(f):
                 data = json.loads(line)
                 self.corpus.append(data['title'] + " " + data["text"])
