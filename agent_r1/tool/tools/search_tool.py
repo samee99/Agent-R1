@@ -5,6 +5,7 @@ Search tool implementation for simulating internet searches
 import time
 import random
 from typing import Dict, List, Any, Optional
+import os
 
 from agent_r1.tool.tool_base import Tool
 
@@ -44,14 +45,20 @@ class SearchTool(Tool):
         
         super().__init__(name, description, parameters)
         print(f"[DEBUG] EMBEDDINGS LOADING")
-        self.index = faiss.read_index("/home/ubuntu/filesystem/Agent-R1/data/corpus/hotpotqa/index.bin")
+        
+        # Get the absolute path to the data directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        data_dir = os.path.abspath(os.path.join(current_dir, "../../../data/corpus/hotpotqa"))
+        
+        # Load index and corpus using absolute paths
+        self.index = faiss.read_index(os.path.join(data_dir, "index.bin"))
         self.model = FlagAutoModel.from_finetuned(
             'BAAI/bge-large-en-v1.5',
             query_instruction_for_retrieval="Represent this sentence for searching relevant passages: ",
             devices="cpu",   # if not specified, will use all available gpus or cpu when no gpu available
         )
         self.corpus = []
-        with open("/home/ubuntu/filesystem/Agent-R1/data/corpus/hotpotqa/hpqa_corpus.jsonl","r") as f:
+        with open(os.path.join(data_dir, "hpqa_corpus.jsonl"), "r") as f:
             for idx, line in enumerate(f):
                 data = json.loads(line)
                 self.corpus.append(data['title'] + " " + data["text"])
