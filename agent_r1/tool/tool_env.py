@@ -30,14 +30,15 @@ def step(env: 'ToolEnv', action_text: str):
     
     if action == env.INVALID_ACTION:
         result = "Invalid tool call format. Please use <tool_call>{\"name\": \"tool_name\", \"arguments\": {params_json}}</tool_call> format."
+        reward = env.PENALTY_FOR_INVALID  # Syntax error penalty
         env._update_tracking_variables(
             response=action_text,
             action=action,
             action_is_valid=False,
             action_is_effective=False,
-            reward=0
+            reward=reward
         )
-        return result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": False, "action_is_effective": False}
+        return result, reward, False, {"action_is_valid": False, "action_is_effective": False}
     
     tool_name = action["tool"]
     tool_args = action["args"]
@@ -45,14 +46,15 @@ def step(env: 'ToolEnv', action_text: str):
     # Validate if the tool exists
     if tool_name not in env.tool_map:
         result = f"Unknown tool: {tool_name}"
+        reward = env.PENALTY_FOR_INEFFECTIVE  # Semantic error penalty
         env._update_tracking_variables(
             response=action_text,
             action=action,
             action_is_valid=True,
             action_is_effective=False,
-            reward=0
+            reward=reward
         )
-        return result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False}
+        return result, reward, False, {"action_is_valid": True, "action_is_effective": False}
     
     # Get tool instance
     tool = env.tool_map[tool_name]
@@ -61,14 +63,15 @@ def step(env: 'ToolEnv', action_text: str):
     is_valid, error_msg = tool.validate_args(tool_args)
     if not is_valid:
         result = f"Invalid arguments for tool '{tool_name}': {error_msg}"
+        reward = env.PENALTY_FOR_INEFFECTIVE  # Semantic error penalty
         env._update_tracking_variables(
             response=action_text,
             action=action,
             action_is_valid=True,
             action_is_effective=False,
-            reward=0
+            reward=reward
         )
-        return result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False}
+        return result, reward, False, {"action_is_valid": True, "action_is_effective": False}
     
     # Execute tool
     try:
@@ -97,16 +100,17 @@ def step(env: 'ToolEnv', action_text: str):
     except Exception as e:
         error_trace = traceback.format_exc()
         result = f"Error executing tool '{tool_name}': {str(e)}"
+        reward = env.PENALTY_FOR_INEFFECTIVE  # Runtime error penalty
         
         env._update_tracking_variables(
             response=action_text,
             action=action,
             action_is_valid=True,
             action_is_effective=False,
-            reward=0
+            reward=reward
         )
         
-        return result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False}
+        return result, reward, False, {"action_is_valid": True, "action_is_effective": False}
 
 # Batch step function
 def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
@@ -144,7 +148,7 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                 action=action,
                 action_is_valid=False,
                 action_is_effective=False,
-                reward=0
+                reward=env.PENALTY_FOR_INVALID  # Syntax error penalty
             )
             results[i] = (result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": False, "action_is_effective": False})
             continue
@@ -161,10 +165,10 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                 action=action,
                 action_is_valid=True,
                 action_is_effective=False,
-                reward=0
+                reward=env.PENALTY_FOR_INEFFECTIVE  # Semantic error penalty
             )
-            results[i] = (result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
-            print(f"[ERROR] Unknown tool: {result}")
+            results[i] = (result, env.PENALTY_FOR_INEFFECTIVE, False, {"action_is_valid": True, "action_is_effective": False})
+            print(f"[WARNING] Unknown tool: {result}")
             continue
             
         # Get tool instance
@@ -180,10 +184,10 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
                 action=action,
                 action_is_valid=True,
                 action_is_effective=False,
-                reward=0
+                reward=env.PENALTY_FOR_INEFFECTIVE  # Semantic error penalty
             )
-            results[i] = (result, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
-            print(f"[ERROR] Invalid arguments for tool: {result}")
+            results[i] = (result, env.PENALTY_FOR_INEFFECTIVE, False, {"action_is_valid": True, "action_is_effective": False})
+            print(f"[WARNING] Invalid arguments for tool: {result}")
             continue
             
         # Group by tool name
@@ -236,64 +240,32 @@ def step_batch(envs: List['ToolEnv'], action_texts: List[str]):
             )
             
             results[idx] = (result, reward, done, {"action_is_valid": True, "action_is_effective": True})
-                
-        # except Exception as e:
-        #     # Fall back to individual execution
-        #     for sub_idx, env, args in zip(indices, envs_list, args_list):
-        #         try:
-        #             env.steps_taken += 1
-        #             result = tool.execute(args)
-        #             reward = tool.calculate_reward(args, result)
-                    
-        #             # Record tool call history
-        #             env.tool_history.append({
-        #                 "tool": tool_name,
-        #                 "args": args,
-        #                 "result": result
-        #             })
-                    
-        #             # Check if max turns reached
-        #             done = env.steps_taken >= env.max_turns
-                    
-        #             # Update tracking variables
-        #             action_text = action_texts[sub_idx]
-        #             action = action_map[sub_idx][1]
-        #             env._update_tracking_variables(
-        #                 response=action_text,
-        #                 action=action,
-        #                 action_is_valid=True,
-        #                 action_is_effective=True,
-        #                 reward=reward
-        #             )
-                    
-        #             results[sub_idx] = (result, reward, done, {"action_is_valid": True, "action_is_effective": True})
-                    
-        #         except Exception as sub_e:
-        #             # Handle individual execution errors
-        #             error_msg = f"Error executing tool '{tool_name}': {str(sub_e)}"
-                    
-        #             # Update tracking variables
-        #             action_text = action_texts[sub_idx]
-        #             action = action_map[sub_idx][1]
-        #             env._update_tracking_variables(
-        #                 response=action_text,
-        #                 action=action,
-        #                 action_is_valid=True,
-        #                 action_is_effective=False,
-        #                 reward=0
-        #             )
-                    
-        #             results[sub_idx] = (error_msg, env.PENALTY_FOR_INVALID, False, {"action_is_valid": True, "action_is_effective": False})
-    
-        #         print(f"[DEBUG] result: {result}")
     return results
 
 class ToolEnv:
     """
     Generic tool environment class, handling tool calls, history tracking, and state
+    
+    Action States:
+    - action_is_valid: Indicates if the action format is correct (proper JSON format, correct tool call syntax)
+                      This is about the syntactic correctness of the action.
+    - action_is_effective: Indicates if the action was successfully executed (tool exists, valid args, no runtime errors)
+                         This is about the semantic correctness and successful execution of the action.
+    
+    Examples:
+    1. Invalid JSON format: valid=False, effective=False
+    2. Unknown tool name: valid=True, effective=False
+    3. Invalid tool args: valid=True, effective=False
+    4. Runtime error: valid=True, effective=False
+    5. Successful execution: valid=True, effective=True
+    
+    Penalties:
+    - PENALTY_FOR_INVALID: Applied when action format is invalid (syntax error)
+    - PENALTY_FOR_INEFFECTIVE: Applied when action is valid but fails to execute (semantic/runtime error)
     """
     INVALID_ACTION = {"tool": "invalid", "args": {}}
-    PENALTY_FOR_INVALID = 0.0
+    PENALTY_FOR_INVALID = -0.1  # Penalty for syntax errors
+    PENALTY_FOR_INEFFECTIVE = -0.05  # Penalty for semantic/runtime errors
     
     def __init__(self, tools: List[Tool] = None, max_turns: int = 10):
         """
@@ -328,7 +300,7 @@ For each function call, return a json object with function name and arguments wi
         
     def reset_tracking_variables(self):
         """Reset tracking variables"""
-        self.reward = 0
+        self.rewards = []  # Record rewards for each tool call
         self.tool_history = []  # Record tool call history
         self.steps_taken = 0
         self._actions = []  # All actions (including all LLM responses)
@@ -338,7 +310,8 @@ For each function call, return a json object with function name and arguments wi
     def get_tracking_variables(self) -> Dict:
         """Get statistics of tracking variables"""
         return {
-            "reward": self.reward,
+            "rewards": self.rewards,  # List of rewards for each step
+            "total_reward": sum(self.rewards),  # Total reward for convenience
             "steps_taken": self.steps_taken,
             "tool_history": self.tool_history,
             "actions": self._actions,
@@ -360,9 +333,14 @@ For each function call, return a json object with function name and arguments wi
         Args:
             response: Raw LLM response
             action: Parsed action
-            action_is_valid: Whether the action format is valid
-            action_is_effective: Whether the action executed successfully
-            reward: Reward for the current step
+            action_is_valid: Whether the action format is syntactically valid (proper JSON, correct tool call syntax)
+            action_is_effective: Whether the action was semantically valid and successfully executed
+            reward: Reward for the current step (including any penalties)
+            
+        Note:
+            - action_is_valid=True means the action was properly formatted, but doesn't guarantee it can be executed
+            - action_is_effective=True means the action was both valid and successfully executed
+            - action_is_effective can only be True if action_is_valid is True
         """
         self._actions.append(response)
         if action_is_valid:
@@ -374,7 +352,7 @@ For each function call, return a json object with function name and arguments wi
         else:
             self._actions_effective.append(None)
         
-        self.reward += reward if action_is_valid else (reward + self.PENALTY_FOR_INVALID)
+        self.rewards.append(reward)
     
     def extract_tool_call(self, text: str) -> Dict:
         """
@@ -453,7 +431,7 @@ For each function call, return a json object with function name and arguments wi
         """
         env = ToolEnv(tools=self.tools, max_turns=self.max_turns)
         env.tool_history = deepcopy(self.tool_history)
-        env.reward = self.reward
+        env.rewards = deepcopy(self.rewards)
         env.steps_taken = self.steps_taken
         env._actions = deepcopy(self._actions)
         env._actions_valid = deepcopy(self._actions_valid)

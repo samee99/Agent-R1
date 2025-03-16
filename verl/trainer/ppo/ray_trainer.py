@@ -234,7 +234,29 @@ def compute_data_metrics(batch, use_critic=True):
     # TODO: add response length
     sequence_score = batch.batch['token_level_scores'].sum(-1)
     sequence_reward = batch.batch['token_level_rewards'].sum(-1)
-
+    
+    # Calculate process rewards metrics if enabled
+    process_rewards_metrics = {}
+    if 'process_rewards' in batch.batch:
+        process_rewards = batch.batch['process_rewards']
+        valid_process_rewards = torch.masked_select(process_rewards, batch.batch['attention_mask'][:, -process_rewards.shape[1]:].bool())
+        nonzero_process_rewards = valid_process_rewards[valid_process_rewards != 0]
+        
+        if len(nonzero_process_rewards) > 0:
+            process_rewards_metrics = {
+                'critic/process_rewards/mean': torch.mean(nonzero_process_rewards).detach().item(),
+                'critic/process_rewards/max': torch.max(nonzero_process_rewards).detach().item(),
+                'critic/process_rewards/min': torch.min(nonzero_process_rewards).detach().item(),
+                'critic/process_rewards/count': len(nonzero_process_rewards),
+            }
+        else:
+            process_rewards_metrics = {
+                'critic/process_rewards/mean': 0.0,
+                'critic/process_rewards/max': 0.0,
+                'critic/process_rewards/min': 0.0,
+                'critic/process_rewards/count': 0,
+            }
+    
     advantages = batch.batch['advantages']
     returns = batch.batch['returns']
 
@@ -298,22 +320,20 @@ def compute_data_metrics(batch, use_critic=True):
             # vf explained var
             'critic/vf_explained_var': (1.0 - return_diff_var / (return_var + 1e-5)).detach().item(),
         } if use_critic else {}),
-
+        # process rewards metrics
+        **process_rewards_metrics,
         # format score
         'critic/format_score/mean': torch.mean(format_scores).detach().item(),
         'critic/format_score/max': torch.max(format_scores).detach().item(),
         'critic/format_score/min': torch.min(format_scores).detach().item(),
-
         # em score
         'critic/answer_score/mean': torch.mean(answer_scores).detach().item(),
         'critic/answer_score/max': torch.max(answer_scores).detach().item(),
         'critic/answer_score/min': torch.min(answer_scores).detach().item(),
-
         # turns
         'turns/mean': torch.mean(turns).detach().item(),
         'turns/max': torch.max(turns).detach().item(),
         'turns/min': torch.min(turns).detach().item(),
-
         # response length
         'response_length/mean':
             torch.mean(response_length).detach().item(),
@@ -638,79 +658,6 @@ class RayPPOTrainer(object):
         # Update reference and log
         wandb.log({"val/generations": new_table}, step=self.global_steps)
         self.validation_table = new_table
-
-    # def _validate(self):
-    #     reward_tensor_lst = []
-    #     data_source_lst = []
-
-    #     # Lists to collect samples for the table
-    #     sample_inputs = []
-    #     sample_outputs = []
-    #     sample_scores = []
-
-    #     for test_data in self.val_dataloader:
-    #         test_batch = DataProto.from_single_dict(test_data)
-
-    #         # we only do validation on rule-based rm
-    #         if self.config.reward_model.enable and test_batch[0].non_tensor_batch['reward_model']['style'] == 'model':
-    #             return {}
-
-    #         # Store original inputs
-    #         input_ids = test_batch.batch['input_ids']
-    #         input_texts = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in input_ids]
-    #         sample_inputs.extend(input_texts)
-
-    #         test_gen_batch = test_batch.pop(['input_ids', 'attention_mask', 'position_ids'])
-    #         test_gen_batch.meta_info = {
-    #             'eos_token_id': self.tokenizer.eos_token_id,
-    #             'pad_token_id': self.tokenizer.pad_token_id,
-    #             'recompute_log_prob': False,
-    #             'do_sample': False,
-    #             'validate': True,
-    #         }
-
-    #         # pad to be divisible by dp_size
-    #         test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
-    #         test_output_gen_batch_padded = self.actor_rollout_wg.generate_sequences(test_gen_batch_padded)
-    #         # unpad
-    #         test_output_gen_batch = unpad_dataproto(test_output_gen_batch_padded, pad_size=pad_size)
-    #         print('validation generation end')
-
-    #         # Store generated outputs
-    #         output_ids = test_output_gen_batch.batch['responses']
-    #         output_texts = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in output_ids]
-    #         sample_outputs.extend(output_texts)
-
-    #         test_batch = test_batch.union(test_output_gen_batch)
-
-    #         # evaluate using reward_function
-    #         reward_tensor = self.val_reward_fn(test_batch)
-
-    #         # Store scores
-    #         scores = reward_tensor.sum(-1).cpu().tolist()
-    #         sample_scores.extend(scores)
-
-    #         reward_tensor_lst.append(reward_tensor)
-    #         data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
-
-    #     self._maybe_log_val_generations_to_wandb(inputs=sample_inputs, outputs=sample_outputs, scores=sample_scores)
-
-    #     reward_tensor = torch.cat(reward_tensor_lst, dim=0).sum(-1).cpu()  # (batch_size,)
-    #     data_sources = np.concatenate(data_source_lst, axis=0)
-
-    #     # evaluate test_score based on data source
-    #     data_source_reward = {}
-    #     for i in range(reward_tensor.shape[0]):
-    #         data_source = data_sources[i]
-    #         if data_source not in data_source_reward:
-    #             data_source_reward[data_source] = []
-    #         data_source_reward[data_source].append(reward_tensor[i].item())
-
-    #     metric_dict = {}
-    #     for data_source, rewards in data_source_reward.items():
-    #         metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
-
-    #     return metric_dict
 
     def _validate(self):
         """
@@ -1143,9 +1090,51 @@ class RayPPOTrainer(object):
 
                         # we combine with rule-based rm
                         reward_tensor, answer_lst, format_lst = self.reward_fn(batch)
+                        
+                        # Add process rewards from tool calls if enabled
+                        process_rewards = torch.zeros_like(reward_tensor)
+                        if self.config.algorithm.get('use_process_rewards', False):  # Default to False if not specified
+                            responses = [self.tokenizer.decode(resp, skip_special_tokens=False) for resp in batch.batch['responses']]
+                            
+                            for i, (response, env) in enumerate(zip(responses, envs)):
+                                # Get valid response length
+                                prompt_ids = batch.batch['prompts'][i]
+                                prompt_length = prompt_ids.shape[-1]
+                                valid_response_length = batch.batch['attention_mask'][i, prompt_length:].sum().item()
+                                
+                                # Get rewards from env
+                                env_rewards = env.rewards
+                                
+                                # Find all tool call end positions
+                                tool_call_ends = []
+                                pos = 0
+                                while True:
+                                    pos = response.find(self.config.tool.tool_call_end, pos)
+                                    if pos == -1:
+                                        break
+                                    tool_call_ends.append(pos)
+                                    pos += 1
+                                
+                                # Convert character positions to token positions
+                                for tool_idx, end_pos in enumerate(tool_call_ends):
+                                    if tool_idx >= len(env_rewards):  # Safety check
+                                        break
+                                        
+                                    # Get token position for the end of tool call
+                                    prefix = response[:end_pos + len(self.config.tool.tool_call_end)]
+                                    token_pos = len(self.tokenizer.encode(prefix, add_special_tokens=False)) - 1
+                                    
+                                    # Only assign reward if token position is within valid response length
+                                    if token_pos < valid_response_length:
+                                        process_rewards[i, token_pos] = env_rewards[tool_idx]
+                            
+                            # Combine final reward with process rewards
+                            reward_tensor = reward_tensor + process_rewards
+                        
                         batch.batch['token_level_scores'] = reward_tensor
                         batch.batch['answer_scores'] = torch.tensor(answer_lst)
                         batch.batch['format_scores'] = torch.tensor(format_lst)
+                        batch.batch['process_rewards'] = process_rewards  # Store process rewards for logging
 
                         # compute rewards. apply_kl_penalty if available
                         if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):

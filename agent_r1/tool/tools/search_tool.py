@@ -116,6 +116,6 @@ class SearchTool(Tool):
         """
         # valid tool call
         if "results" in result:
-            return 0.0
+            return 0.1
         else:
             return 0.0

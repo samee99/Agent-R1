@@ -88,11 +88,11 @@ class WikiSearchTool(Tool):
                 error_msg = f"Search API returned error: {response.status_code}"
                 if response.text:
                     error_msg += f" - {response.text}"
-                print(f"[ERROR] {error_msg}")
+                print(f"[WARNING] {error_msg}")
                 return json.dumps({"error": error_msg})
         except Exception as e:
             error_msg = f"Failed to execute search: {str(e)}"
-            print(f"[ERROR] {error_msg}")
+            print(f"[WARNING] {error_msg}")
             return json.dumps({"error": error_msg})
     
     def batch_execute(self, args_list: List[Dict]) -> List[str]:
@@ -133,11 +133,11 @@ class WikiSearchTool(Tool):
                 error_msg = f"Batch search API returned error: {response.status_code}"
                 if response.text:
                     error_msg += f" - {response.text}"
-                print(f"[ERROR] {error_msg}")
+                print(f"[WARNING] {error_msg}")
                 return [json.dumps({"error": error_msg}) for _ in queries]
         except Exception as e:
             error_msg = f"Failed to execute batch search: {str(e)}"
-            print(f"[ERROR] {error_msg}")
+            print(f"[WARNING] {error_msg}")
             return [json.dumps({"error": error_msg}) for _ in queries]
 
     def _format_results(self, api_result) -> str:
