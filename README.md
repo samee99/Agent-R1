@@ -2,6 +2,8 @@
 
 <p align="center"><img src="./image/agent.png" width="800px" alt="RICO Framework" /></p>
 
+**2025.3.18 Update:** We have added support for **process rewards**! You can now assign rewards for each tool call based on its effectiveness. To balance process rewards with outcome rewards, we implemented reward normalization inspired by [PRIME](https://github.com/PRIME-RL/PRIME).
+
 ## Overview
 
 **Reinforcement learning (RL)** has catalyzed the evolution of Large Language Models (LLMs) from simple **Chatbots (Level 1)** to powerful **Reasoners (Level 2)** capable of superhuman performance on complex tasks like mathematics and coding. Models trained with reinforcement learning have demonstrated remarkable abilities to develop complex reasoning strategies through exploration and exploitation, as seen in breakthrough models like DeepSeek's R1, which naturally learns to construct long reasoning chains to solve challenging problems.
