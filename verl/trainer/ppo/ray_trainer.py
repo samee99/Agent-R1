@@ -939,6 +939,78 @@ class RayPPOTrainer(object):
                                                     prefix=logging_prefix)
         metrics.update(global_balance_stats)
 
+    def prime_norm(self, token_level_scores):
+        """
+        Apply normalization to token level scores.
+        This helps stabilize training by considering cumulative effects and scaling rewards.
+        
+        Args:
+            token_level_scores: Tensor of token level scores
+            
+        Returns:
+            Normalized token level scores
+        """
+        # Compute reverse cumulative sum and normalize by its maximum absolute value
+        reverse_cumsum = torch.cumsum(token_level_scores.flip(dims=[1]), dim=-1).flip(dims=[1])
+        token_level_scores = token_level_scores / (reverse_cumsum.abs().max() + 1e-6)
+        return token_level_scores
+
+    def _compute_process_rewards(self, batch, envs, reward_tensor) -> torch.Tensor:
+        """
+        Compute process rewards for tool calls.
+        
+        Args:
+            batch: The batch data containing responses and attention masks
+            envs: List of tool environments containing reward history
+            reward_tensor: Tensor with same shape as responses for storing rewards
+            
+        Returns:
+            process_rewards: Tensor containing rewards for each tool call
+        """
+        process_rewards = torch.zeros_like(reward_tensor)
+        
+        if not self.config.algorithm.get('use_process_rewards', False):
+            return process_rewards
+        
+        responses = [self.tokenizer.decode(resp, skip_special_tokens=False) for resp in batch.batch['responses']]
+        
+        for i, (response, env) in enumerate(zip(responses, envs)):
+            # Get valid response length
+            prompt_ids = batch.batch['prompts'][i]
+            prompt_length = prompt_ids.shape[-1]
+            valid_response_length = batch.batch['attention_mask'][i, prompt_length:].sum().item()
+            
+            # Get rewards from env
+            env_rewards = env.rewards
+            
+            # Find all tool call end positions
+            tool_call_ends = []
+            pos = 0
+            while True:
+                pos = response.find(self.config.tool.tool_call_end, pos)
+                if pos == -1:
+                    break
+                tool_call_ends.append(pos)
+                pos += 1
+            
+            # Convert character positions to token positions
+            for tool_idx, end_pos in enumerate(tool_call_ends):
+                if tool_idx >= len(env_rewards):  # Safety check
+                    break
+                    
+                # Get token position for the end of tool call
+                prefix = response[:end_pos + len(self.config.tool.tool_call_end)]
+                token_pos = len(self.tokenizer.encode(prefix, add_special_tokens=False)) - 1
+                
+                # Only assign reward if token position is within valid response length
+                if token_pos < valid_response_length:
+                    process_rewards[i, token_pos] = env_rewards[tool_idx]
+        
+        # Apply normalization to process rewards
+        process_rewards = self.prime_norm(process_rewards)
+        
+        return process_rewards
+
     def fit(self):
         """
         The training loop of PPO.
@@ -1091,44 +1163,11 @@ class RayPPOTrainer(object):
                         # we combine with rule-based rm
                         reward_tensor, answer_lst, format_lst = self.reward_fn(batch)
                         
-                        # Add process rewards from tool calls if enabled
-                        process_rewards = torch.zeros_like(reward_tensor)
-                        if self.config.algorithm.get('use_process_rewards', False):  # Default to False if not specified
-                            responses = [self.tokenizer.decode(resp, skip_special_tokens=False) for resp in batch.batch['responses']]
-                            
-                            for i, (response, env) in enumerate(zip(responses, envs)):
-                                # Get valid response length
-                                prompt_ids = batch.batch['prompts'][i]
-                                prompt_length = prompt_ids.shape[-1]
-                                valid_response_length = batch.batch['attention_mask'][i, prompt_length:].sum().item()
-                                
-                                # Get rewards from env
-                                env_rewards = env.rewards
-                                
-                                # Find all tool call end positions
-                                tool_call_ends = []
-                                pos = 0
-                                while True:
-                                    pos = response.find(self.config.tool.tool_call_end, pos)
-                                    if pos == -1:
-                                        break
-                                    tool_call_ends.append(pos)
-                                    pos += 1
-                                
-                                # Convert character positions to token positions
-                                for tool_idx, end_pos in enumerate(tool_call_ends):
-                                    if tool_idx >= len(env_rewards):  # Safety check
-                                        break
-                                        
-                                    # Get token position for the end of tool call
-                                    prefix = response[:end_pos + len(self.config.tool.tool_call_end)]
-                                    token_pos = len(self.tokenizer.encode(prefix, add_special_tokens=False)) - 1
-                                    
-                                    # Only assign reward if token position is within valid response length
-                                    if token_pos < valid_response_length:
-                                        process_rewards[i, token_pos] = env_rewards[tool_idx]
-                            
-                            # Combine final reward with process rewards
+                        # Add process rewards from tool calls
+                        process_rewards = self._compute_process_rewards(batch, envs, reward_tensor)
+                        
+                        # Combine final reward with process rewards if enabled
+                        if self.config.algorithm.get('use_process_rewards', False):
                             reward_tensor = reward_tensor + process_rewards
                         
                         batch.batch['token_level_scores'] = reward_tensor
