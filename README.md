@@ -6,7 +6,7 @@
 
 ## Overview
 
-**Agent-R1** is an open-source framework designed to accelerate research and development at this critical intersection. Our framework employs **End-to-End** reinforcement learning to train agents in specific environments. Developers need only define domain-specific tools and reward functions to extend Agent-R1 to their unique use cases, eliminating the need for complex workflow engineering. We hope our modest contribution can benefit the open-source community, making it easier for researchers and developers to create and explore agents in their own domains, collectively advancing the development of autonomous agents. For more details on the algorithm, see [algorithm doc](https://github.com/0russwest0/Agent-R1/tree/tmp_readme/docs/algorithm/algorithm.md).
+**Agent-R1** is an open-source framework designed to accelerate research and development at this critical intersection. Our framework employs **End-to-End** reinforcement learning to train agents in specific environments. Developers need only define domain-specific tools and reward functions to extend Agent-R1 to their unique use cases, eliminating the need for complex workflow engineering. We hope our modest contribution can benefit the open-source community, making it easier for researchers and developers to create and explore agents in their own domains, collectively advancing the development of autonomous agents. For more details on the algorithm, see [algorithm doc](https://github.com/0russwest0/Agent-R1/blob/main/docs/algorithm/algorithm.md).
 
 ## Key Features
 
@@ -22,8 +22,8 @@
 - **Additional Use Cases**: More example implementations across diverse scenarios and domains
 
 ## Get Started
-- [Environment Setup](https://github.com/0russwest0/Agent-R1/tree/tmp_readme/docs/getting_started/installation.md)
-- [Quick Start: Try Default Search Tool on HotpotQA](https://github.com/0russwest0/Agent-R1/tree/tmp_readme/docs/getting_started/quickstart.md)
+- [Environment Setup](https://github.com/0russwest0/Agent-R1/blob/main/docs/getting_started/installation.md)
+- [Quick Start: Try Default Search Tool on HotpotQA](https://github.com/0russwest0/Agent-R1/blob/main/docs/getting_started/quickstart.md)
 
 
 
@@ -55,7 +55,7 @@ For detailed implementation guidance, examine the existing code:
 - Data processing: `examples/data_preprocess/hotpotqa.py`
 - Reward functions: `verl/utils/reward_score/qa_em_and_format.py`
 
-See the [extending doc](https://github.com/0russwest0/Agent-R1/tree/tmp_readme/docs/extend/extending.md) for details.
+See the [extending doc](https://github.com/0russwest0/Agent-R1/blob/main/docs/extend/extending.md) for details.
 
 ## Feedback
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
