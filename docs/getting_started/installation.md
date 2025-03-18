@@ -10,7 +10,7 @@ cd Agent-R1
 ```bash
 mkdir -p envs
 cd envs
-conda create -n verl python==3.9
+conda create -n verl python==3.10
 conda activate verl
 # install verl together with some lightweight dependencies in setup.py
 pip3 install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu124
