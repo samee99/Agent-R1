@@ -64,18 +64,30 @@ We welcome all forms of feedback! Please raise an issue for bugs, questions, or 
 
 ## Contributors
 
-[**Jie Ouyang**\*](https://github.com/0russwest0), [**Ruiran Yan**\*](https://github.com/RuiranYan), [**Yucong Luo**\*](https://github.com/GodFire66666), Zirui Liu, Shuo Yu
+[**Jie Ouyang**\*](https://github.com/0russwest0), [**Ruiran Yan**\*](https://github.com/RuiranYan), [**Yucong Luo**\*](https://github.com/GodFire66666), Zirui Liu, Shuo Yu, Daoyu Wang.
 
 ## Acknowledgements  
 We extend our gratitude to [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1) for providing the DeepSeek-R1 model and inspiring ideas. We are also thankful to the [veRL](https://github.com/volcengine/verl) team for their robust infrastructure support. Additionally, we acknowledge the [RAGEN](https://github.com/ZihanWang314/ragen) team for their groundbreaking discoveries, which significantly influenced our early exploration. Lastly, we deeply appreciate the insightful discussions and contributions from Jie Ouyang, Ruiran Yan, and Yucong Luo.
 
 ## Citation
+**Agent-R1**
 ```md
 @misc{Agent-R1,
-  author       = {Jie Ouyang, Ruiran Yan, Yucong Luo, Zirui Liu, Shuo Yu},
+  author       = {Jie Ouyang, Ruiran Yan, Yucong Luo, Zirui Liu, Shuo Yu, Daoyu Wang},
   title        = {Training Powerful LLM Agents with End-to-End Reinforcement Learning},
   year         = {2025},
   organization = {GitHub},
   url          = {https://github.com/0russwest0/Agent-R1},
+}
+```
+
+**Awesome-Agent-RL**
+```md
+@misc{Awesome-Agent-RL
+  author       = {Jie Ouyang, Daoyu Wang, Shuo Yu},
+  title        = {Awesome Agent Reinforcement Learning},
+  year         = {2025},
+  organization = {GitHub},
+  url          = {https://github.com/0russwest0/Awesome-Agent-RL},
 }
 ```
