@@ -1188,7 +1188,7 @@ class RayAgentTrainer(object):
         metrics['action/ratio'] = action_ratio
         metrics['action/length/max'] = action_mask.sum(dim=-1).max().item()
         metrics['action/length/min'] = action_mask.sum(dim=-1).min().item()
-        metrics['action/length/mean'] = action_mask.sum(dim=-1).mean().item()
+        metrics['action/length/mean'] = action_mask.sum(dim=-1).float().mean().item()
         
         batch.batch['action_mask'] = action_mask
         return batch, metrics
