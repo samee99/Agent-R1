@@ -86,7 +86,7 @@ We extend our gratitude to [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1
 **Agent-R1**
 ```md
 @misc{Agent-R1,
-  author       = {Jie Ouyang, Ruiran Yan, Yucong Luo, Zirui Liu, Shuo Yu, Daoyu Wang},
+  author       = {Jie Ouyang, Ruiran Yan, Yucong Luo, Mingyue Cheng, Qi Liu, Zirui Liu, Shuo Yu, Daoyu Wang},
   title        = {Training Powerful LLM Agents with End-to-End Reinforcement Learning},
   year         = {2025},
   organization = {GitHub},
