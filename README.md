@@ -93,3 +93,7 @@ We extend our gratitude to [DeepSeek](https://github.com/deepseek-ai/DeepSeek-R1
   url          = {https://github.com/0russwest0/Agent-R1},
 }
 ```
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=0russwest0/Agent-R1&type=Date)](https://www.star-history.com/#0russwest0/Agent-R1&Date)
