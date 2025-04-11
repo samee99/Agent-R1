@@ -19,4 +19,4 @@ def _default_tools(env):
     elif env == 'wikisearch':
         return [WikiSearchTool()]
     else:
-        raise NotImplementedError
+        return []
