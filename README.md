@@ -74,6 +74,8 @@ See the [extending doc](https://github.com/0russwest0/Agent-R1/blob/main/docs/ex
 ## Feedback
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
 
+**Join our community**: Connect with other users and our development team in our [WeChat group](https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.png).
+
 ## Contributors
 
 **Student Contributors**: [**Jie Ouyang**\*](https://github.com/0russwest0), [**Ruiran Yan**\*](https://github.com/RuiranYan), [**Yucong Luo**\*](https://github.com/GodFire66666), Zirui Liu, Shuo Yu, Daoyu Wang
