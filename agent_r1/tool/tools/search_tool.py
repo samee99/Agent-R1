@@ -2,53 +2,34 @@
 Search tool implementation for simulating internet searches
 """
 
-import time
-import random
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import os
 
-from agent_r1.tool.tool_base import Tool
+from agent_r1.tool.base import BaseTool
 
-# from txtai.embeddings import Embeddings
 import faiss
 from FlagEmbedding import FlagAutoModel
 import json
 
-class SearchTool(Tool):
-    """
-    Tool for simulating internet searches using the NeuML/txtai-wikipedia model
-    """
+class SearchTool(BaseTool):
+    name = "search"
+    description = "Search for information on the internet using Wikipedia as a knowledge source."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "Search query"}
+        },
+        "required": ["query"]
+    }
     
     def __init__(self):
-        """
-        Initialize the search tool
-        
-        Args:
-            search_db: Custom search database, if None, use default
-        """
-        name = "search"
-        description = "Search for information on the internet using Wikipedia as a knowledge source."
-        parameters = {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Search query"
-                },
-                # "limit": {
-                #     "type": "integer",
-                #     "description": "Maximum number of results to return (default: 5)"
-                # }
-            },
-            "required": ["query"]
-        }
-        
-        super().__init__(name, description, parameters)
+        super().__init__()
         print("[DEBUG] EMBEDDINGS LOADING")
         
         # Get the absolute path to the data directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        data_dir = os.path.abspath(os.path.join(current_dir, "../../../data/corpus/hotpotqa"))
+        # data_dir = os.path.abspath(os.path.join(current_dir, "../../../data/corpus/hotpotqa"))
+        data_dir = os.path.abspath(os.path.join(current_dir, "/home/yanruiran/workspace/Agent-R1/data/corpus/hotpotqa"))
         
         # Load index and corpus using absolute paths
         self.index = faiss.read_index(os.path.join(data_dir, "index.bin"))
@@ -64,27 +45,35 @@ class SearchTool(Tool):
                 self.corpus.append(data['title'] + " " + data["text"])
         print("[DEBUG] EMBEDDINGS LOADING END")
 
-    
-    def execute(self, args: Dict) -> str:
+    def execute(self, args: Dict) -> Dict[str, Any]:
         """
         Execute search query
         
         Args:
             args: Tool parameters, containing:
                 - "query": search query string
-                - "limit": optional int to limit number of results
             
         Returns:
             Formatted search results
         """
-        pass
+        try:
+            query = args["query"]
+            embeddings = self.model.encode_queries([query])
+            dist, ids = self.index.search(embeddings, 5) # ids: b*5
+            result_str = self._format_results(ids[0])
+            return {"content": result_str, "success": True}
+        except Exception as e:
+            return {"content": str(e), "success": False}
     
-    def batch_execute(self, args_list: List[Dict]) -> List[str]:
-        queries = [x["query"] for x in args_list]
-        embeddings = self.model.encode_queries(queries)
-        dist, ids = self.index.search(embeddings, 5) # ids: b*5
-        results_str = [self._format_results(ids[i]) for i in range(len(ids))]
-        return results_str
+    def batch_execute(self, args_list: List[Dict]) -> List[Dict[str, Any]]:
+        try:
+            queries = [x["query"] for x in args_list]
+            embeddings = self.model.encode_queries(queries)
+            dist, ids = self.index.search(embeddings, 5) # ids: b*5
+            results_str = [self._format_results(ids[i]) for i in range(len(ids))]
+            return [{"content": result_str, "success": True} for result_str in results_str]
+        except Exception as e:
+            return [{"content": str(e), "success": False} for _ in args_list]
 
     def _format_results(self, results: List) -> str:
         """
@@ -102,20 +91,3 @@ class SearchTool(Tool):
             results_list.append(self.corpus[result])
         
         return json.dumps({"results": results_list})
-    
-    def calculate_reward(self, args: Dict, result: str) -> float:
-        """
-        Calculate reward for search action
-        
-        Args:
-            args: Tool parameters
-            result: Tool execution result
-            
-        Returns:
-            Reward value
-        """
-        # valid tool call
-        if "results" in result:
-            return 0.1
-        else:
-            return 0.0

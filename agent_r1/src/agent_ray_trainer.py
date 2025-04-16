@@ -42,10 +42,10 @@ from torch.utils.data import RandomSampler, SequentialSampler
 from torchdata.stateful_dataloader import StatefulDataLoader
 
 from agent_r1.llm_agent.generation import ToolGenerationManager, ToolGenerationConfig
-from agent_r1.tool.tool_env import ToolEnv
 from agent_r1.src import core_algos
 from agent_r1.src.agent_rl_dataset import ToolRLDataset, collate_fn
 from agent_r1.src.metric_utils import compute_data_metrics, compute_throughout_metrics, compute_timing_metrics, reduce_metrics
+from agent_r1.tool.base import BaseToolEnv
 
 WorkerType = Type[Worker]
 
@@ -256,8 +256,8 @@ class RayAgentTrainer(object):
                  ray_worker_group_cls: RayWorkerGroup = RayWorkerGroup,
                  reward_fn=None,
                  val_reward_fn=None,
-                 env: ToolEnv = None,
-                 val_env: ToolEnv = None):
+                 env: BaseToolEnv = None,
+                 val_env: BaseToolEnv = None):
 
         # assert torch.cuda.is_available(), 'cuda must be available on driver'
 
@@ -526,13 +526,7 @@ class RayAgentTrainer(object):
             max_response_length=self.config.data.max_response_length,
             max_response_length_single_turn=self.config.data.max_response_length_single_turn,
             max_tool_response_length=self.config.data.max_tool_response_length,
-            num_gpus=self.config.trainer.n_gpus_per_node,
-            use_batch_tool_calls=self.config.tool.use_batch_tool_calls,
-            tool_call_start=self.config.tool.tool_call_start,
-            tool_call_end=self.config.tool.tool_call_end,
-            tool_response_start=self.config.tool.tool_response_start,
-            tool_response_end=self.config.tool.tool_response_end,
-            tool_custom_response_template=self.config.tool.tool_custom_response_template,
+            use_batch_tool_calls=self.config.tool.use_batch_tool_calls
         )
 
         generation_manager = ToolGenerationManager(
@@ -549,8 +543,6 @@ class RayAgentTrainer(object):
             # repeat test batch
             test_batch = test_batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.val_kwargs.n,
                                            interleave=True)
-
-            envs = [self.val_env.copy() for _ in range(len(test_batch))]
 
             # we only do validation on rule-based rm
             if self.config.reward_model.enable and test_batch[0].non_tensor_batch['reward_model']['style'] == 'model':
@@ -585,7 +577,7 @@ class RayAgentTrainer(object):
             test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
             test_output_gen_batch_padded = generation_manager.run_llm_loop(
                 test_gen_batch_padded,
-                envs=envs,
+                env=self.val_env,
             )
 
             # unpad
@@ -606,12 +598,7 @@ class RayAgentTrainer(object):
             #     test_batch.batch[key] = test_batch.batch[key].long()
 
             # evaluate using reward_function
-            try:
-                reward_tensor, answer_lst, format_lst = self.val_reward_fn(test_batch)
-            except:
-                print(f"[Error] Something wrong with the reward function")
-                print(test_batch)
-                exit()
+            reward_tensor, answer_lst, format_lst = self.val_reward_fn(test_batch)
 
             # Store scores
             # scores = reward_tensor.sum(-1).cpu().tolist()
@@ -955,13 +942,7 @@ class RayAgentTrainer(object):
             max_response_length=self.config.data.max_response_length,
             max_response_length_single_turn=self.config.data.max_response_length_single_turn,
             max_tool_response_length=self.config.data.max_tool_response_length,
-            num_gpus=self.config.trainer.n_gpus_per_node,
-            use_batch_tool_calls=self.config.tool.use_batch_tool_calls,
-            tool_call_start=self.config.tool.tool_call_start,
-            tool_call_end=self.config.tool.tool_call_end,
-            tool_response_start=self.config.tool.tool_response_start,
-            tool_response_end=self.config.tool.tool_response_end,
-            tool_custom_response_template=self.config.tool.tool_custom_response_template,
+            use_batch_tool_calls=self.config.tool.use_batch_tool_calls
         )
 
         generation_manager = ToolGenerationManager(
@@ -980,8 +961,6 @@ class RayAgentTrainer(object):
                 batch.non_tensor_batch['uid'] = np.array([str(uuid.uuid4()) for _ in range(len(batch.batch))],
                                                         dtype=object)
                 batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n_repeat, interleave=True)
-
-                envs = [self.env.copy() for _ in range(len(batch))]
                 
                 # pop those keys for generation
                 if 'multi_modal_inputs' in batch.non_tensor_batch.keys():
@@ -1001,7 +980,7 @@ class RayAgentTrainer(object):
                     with _timer('gen', timing_raw):
                         final_gen_batch_output = generation_manager.run_llm_loop(
                             gen_batch=gen_batch,
-                            envs=envs,
+                            env=self.env,
                         )
 
                     for key in final_gen_batch_output.batch.keys():
@@ -1068,16 +1047,16 @@ class RayAgentTrainer(object):
                         reward_tensor, answer_lst, format_lst = self.reward_fn(batch)
 
                         # Add process rewards from tool calls
-                        process_rewards = self._compute_process_rewards(batch, envs, reward_tensor)
+                        # process_rewards = self._compute_process_rewards(batch, envs, reward_tensor)
                         
                         # Combine final reward with process rewards if enabled
-                        if self.config.algorithm.get('use_process_rewards', False):
-                            reward_tensor = reward_tensor + process_rewards
+                        # if self.config.algorithm.get('use_process_rewards', False):
+                        #     reward_tensor = reward_tensor + process_rewards
                         
                         batch.batch['token_level_scores'] = reward_tensor
                         batch.batch['answer_scores'] = torch.tensor(answer_lst)
                         batch.batch['format_scores'] = torch.tensor(format_lst)
-                        batch.batch['process_rewards'] = process_rewards  # Store process rewards for logging
+                        # batch.batch['process_rewards'] = process_rewards  # Store process rewards for logging
 
                         # compute rewards. apply_kl_penalty if available
                         if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):

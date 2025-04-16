@@ -4,13 +4,14 @@ Tool generation manager for LLM agents
 
 import torch
 import re
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Union
 from dataclasses import dataclass
 from PIL import Image
 import numpy as np
 
 from .tensor_helper import TensorHelper, TensorConfig
-from agent_r1.tool.tool_env import ToolEnv, step, step_batch
+from agent_r1.tool.base import BaseToolEnv, BaseImageToolEnv
+
 from verl import DataProto
 from verl.protocol import pad_dataproto_to_divisor, unpad_dataproto
 
@@ -22,14 +23,7 @@ class ToolGenerationConfig:
     max_response_length: int
     max_response_length_single_turn: int
     max_tool_response_length: int
-    num_gpus: int
-    # use_parallel_tool_calls: bool = False
-    use_batch_tool_calls: bool = False  # New option for batch execution
-    tool_call_start: str = "<tool_call>"
-    tool_call_end: str = "</tool_call>"
-    tool_response_start: str = "<tool_response>"
-    tool_response_end: str = "</tool_response>"
-    tool_custom_response_template: str = ""
+    use_batch_tool_calls: bool = False
     
 class ToolGenerationManager:
     """Manager for handling LLM tool-based generation and interaction"""
@@ -63,127 +57,60 @@ class ToolGenerationManager:
             padding="longest"
         )['input_ids']
 
-    def _process_tool_call(self, responses_str) -> Tuple[List[str], List[bool]]:
-        """
-        Process a list of response strings to extract the first tool call
-        while preserving the rest of the string content.
+    def _example_level_pad(self, data: Union[List[Any], np.ndarray],
+                           active_mask: torch.Tensor,
+                           pad_value: Any = None) -> Union[List[Any], np.ndarray]:
+        """Pad data according to active mask.
         
         Args:
-            responses_str (List[str]): List of response strings potentially containing tool calls
-            
-        Returns:
-            List[str]: Processed responses with only first tool call preserved
-        """
-        def process_single_response(resp):
-            # Look for tool call pattern: <tool_call>tool_name(args)</tool_call>
-            tool_pattern = r'<tool_call>(.*?)</tool_call>'
-            match = re.search(tool_pattern, resp, re.DOTALL)
-            
-            if not match:
-                return resp + self.tokenizer.eos_token, False  # No tool call found
-            
-            resp = resp.split(self.config.tool_call_end)[0] + self.config.tool_call_end
-            
-            return resp + self.tokenizer.eos_token, True
-        
-        # Process each response string
-        return [process_single_response(resp)[0] for resp in responses_str], [process_single_response(resp)[1] for resp in responses_str]
-
-    def _postprocess_responses(self, responses: torch.Tensor) -> torch.Tensor:
-        """Process responses to extract tool calls."""
-        responses_str = self.tokenizer.batch_decode(
-            responses, 
-            skip_special_tokens=True
-        )
-
-        # Extract the first tool call from each response
-        responses_str, active_masks = self._process_tool_call(responses_str)
-        
-        return responses_str, torch.tensor(active_masks, dtype=torch.bool)
-    
-    def _process_tool_responses(self, tool_responses: List[str]) -> torch.Tensor:
-        """Process tool responses to token ids"""
-        
-        tool_responses_ids = self.tokenizer(
-            tool_responses, 
-            padding='longest',
-            return_tensors='pt'
-        )['input_ids']
-        
-        if tool_responses_ids.shape[1] > self.config.max_tool_response_length:
-            print("[WARNING] TOOL RESPONSE TOO LONG, CONSIDER CHANGING YOUR CONFIG")
-            tool_responses_ids = tool_responses_ids[:, :self.config.max_tool_response_length]
-            
-        return tool_responses_ids
-    
-    def _execute_tool_calls(self, response_strs: List[str], 
-                          envs: List[ToolEnv], 
-                          active_mask: torch.Tensor) -> List[str]:
-        """Execute tool calls sequentially and return tool responses."""
-        # Convert torch tensor to list of booleans if needed
-        active_list = active_mask.tolist() if isinstance(active_mask, torch.Tensor) else active_mask
-        
-        # Initialize result list with empty strings
-        tool_responses = [""] * len(response_strs)
-        tool_response_images = [None] * len(response_strs)
-        # Process each environment sequentially
-        for i, (resp, env, active) in enumerate(zip(response_strs, envs, active_list)):
-            if not active:
-                continue
+            data: Data to be padded. Can be list of any type (str, list, dict, etc.)
+            active_mask: Boolean tensor indicating which positions are active
+            pad_value: Value to use for padding. If None, will use:
+                - Empty string "" for strings
+                - Empty list [] for lists
+                - Empty dict {} for dicts
+                - None for other types
                 
-            # Step the environment using the agent's response
-            result = step(env, resp)
-            tool_response = result[0]['content']  # Extract observation from (observation, reward, done, info)
-            tool_response_images[i] = result[0]['image']
-            tool_responses[i] = self.config.tool_custom_response_template.format(tool_response=tool_response)            
-        return tool_responses, tool_response_images
-    
-    def _execute_tool_calls_batch(self, response_strs: List[str], 
-                                 envs: List[ToolEnv], 
-                                 active_mask: torch.Tensor) -> List[str]:
-        """Execute tool calls in batch for tools that support batch operations."""
-        # Convert torch tensor to list of booleans
-        active_list = active_mask.tolist() if isinstance(active_mask, torch.Tensor) else active_mask
+        Returns:
+            Padded data with same type as input
+        """
+        # Get batch size from active mask
+        batch_size = active_mask.shape[0]
         
-        # Filter active environments and responses
-        active_envs = []
-        active_responses = []
-        active_indices = []
+        # Determine pad value if not provided
+        if pad_value is None:
+            if len(data) > 0:
+                first_elem = data[0]
+                if isinstance(first_elem, str):
+                    pad_value = ""
+                elif isinstance(first_elem, list):
+                    pad_value = []
+                else:
+                    raise NotImplementedError(f"[WARNING] Unsupported data type: {type(first_elem)}")
+                
+        # Create padded output
+        padded_data = [pad_value] * batch_size
         
-        for i, (env, resp, active) in enumerate(zip(envs, response_strs, active_list)):
-            if active:
-                active_envs.append(env)
-                active_responses.append(resp)
-                active_indices.append(i)
+        # Fill active positions
+        s = 0
+        for i, is_active in enumerate(active_mask):
+            if is_active:
+                padded_data[i] = data[s]
+                s += 1
         
-        # Initialize result list with empty strings
-        tool_responses = [""] * len(response_strs)
-        tool_response_images = [None] * len(response_strs)
-        
-        if not active_envs:
-            return tool_responses, tool_response_images
+        # Convert to numpy array if input was numpy array
+        if isinstance(data, np.ndarray):
+            padded_data = np.array(padded_data, dtype=object)
             
-        # Use the independent step_batch function for active environments
-        batch_results = step_batch(active_envs, active_responses)
-        
-        # Map results back to original indices
-        for idx, result in zip(active_indices, batch_results):
-            if result is None:
-                tool_responses[idx] = ""
-                tool_response_images[idx] = None
-            else:
-                tool_response = result[0]['content']  # Extract observation from (observation, reward, done, info)
-                tool_responses[idx] = self.config.tool_custom_response_template.format(tool_response=tool_response)
-                tool_response_images[idx] = result[0]['image']
-        return tool_responses, tool_response_images
+        return padded_data
  
-    def _update_rolling_state(self, rollings, cur_responses: List[str], 
-                            tool_responses: List[str], tool_responses_images: List[List[Image.Image]]) -> Dict:
+    def _update_rolling_state(self, rollings, assistant_messages: List[str], 
+                            tool_messages: List[str], tool_images: List[List[Image.Image]]) -> Dict:
         """Update rolling state with new responses and observations.
         rollings : last llm input DataProto
-        cur_responses: llm output action 
-        tool_responses: tool response text
-        tool_responses_images: tool response image 
+        assistant_messages: assistant message
+        tool_messages: tool message
+        tool_images: tool image 
         """
 
         is_multi_modal = "multi_modal_data" in rollings.non_tensor_batch.keys()
@@ -192,20 +119,20 @@ class ToolGenerationManager:
         responses = []
         raw_prompts = []
         
-        for i, (tool_response, cur_response, tool_responses_image) in enumerate(zip(tool_responses, cur_responses, tool_responses_images)):
+        for i, (tool_message, assistant_message, tool_image) in enumerate(zip(tool_messages, assistant_messages, tool_images)):
             row_dict={}
-            if is_multi_modal and '<image>' in tool_response and tool_responses_image is not None:
-                assert len(tool_responses_image) == tool_response.count('<image>'), f"[WARNING] TOOL RESPONSE IMAGE NUMBER NOT MATCH, {len(tool_responses_image)} != {tool_response.count('<image>')} for {cur_response}"
-                raw_prompts.append(cur_response + tool_response.replace('<image>', '<|vision_start|><|image_pad|><|vision_end|>'))
-                row_dict['multi_modal_data'] = {'image': tool_responses_image}
+            if is_multi_modal and '<image>' in tool_message and len(tool_image) > 0:
+                assert len(tool_image) == tool_message.count('<image>'), f"[WARNING] TOOL RESPONSE IMAGE NUMBER NOT MATCH, {len(tool_image)} != {tool_message.count('<image>')} for {assistant_message}"
+                raw_prompts.append(assistant_message + tool_message.replace('<image>', '<|vision_start|><|image_pad|><|vision_end|>'))
+                row_dict['multi_modal_data'] = {'image': tool_image}
                 image_inputs = self.processor.image_processor(row_dict['multi_modal_data']['image'], return_tensors='pt')
                 row_dict['multi_modal_inputs'] = {key: val for key, val in image_inputs.items()}
                 image_grid_thw = image_inputs['image_grid_thw']
                 if image_grid_thw is not None:
                     merge_length = self.processor.image_processor.merge_size**2
                     index = 0
-                    while '<image>' in tool_response:
-                        tool_response = tool_response.replace(
+                    while '<image>' in tool_message:
+                        tool_message = tool_message.replace(
                             '<image>',
                             '<|vision_start|>' + '<|placeholder|>' * (image_grid_thw[index].prod() // merge_length) +
                             '<|vision_end|>',
@@ -213,11 +140,11 @@ class ToolGenerationManager:
                         )
                         index += 1
 
-                    tool_response = tool_response.replace('<|placeholder|>', self.processor.image_token)
+                    tool_message = tool_message.replace('<|placeholder|>', self.processor.image_token)
 
             else:
-                raw_prompts.append(cur_response + tool_response)
-            responses.append(cur_response + tool_response)
+                raw_prompts.append(assistant_message + tool_message)
+            responses.append(assistant_message + tool_message)
             row_dict_list.append(row_dict)
 
         responses_ids = self._batch_tokenize(responses)
@@ -295,7 +222,7 @@ class ToolGenerationManager:
 
         return rollings
     
-    def run_llm_loop(self, gen_batch, envs: List[Any] = None) -> Tuple[Dict, Dict]:
+    def run_llm_loop(self, gen_batch, env: Union[BaseToolEnv, BaseImageToolEnv]) -> Tuple[Dict, Dict]:
         """Run main LLM generation loop."""
 
         batch_size = gen_batch.batch['input_ids'].shape[0]
@@ -349,37 +276,54 @@ class ToolGenerationManager:
                     },
                 )
 
-            # rollings_active.batch = self.tensor_fn.cut_to_effective_len(
-            #     rollings_active.batch,
-            #     keys=['input_ids', 'attention_mask', 'position_ids']
-            # )
-
             rollings_active, pad_size = pad_dataproto_to_divisor(rollings_active, self.actor_rollout_wg.world_size)
             gen_output = self.actor_rollout_wg.generate_sequences(rollings_active)
             gen_output = unpad_dataproto(gen_output, pad_size=pad_size)
 
-            responses_str, new_active_masks = self._postprocess_responses(gen_output.batch['responses'])
-            responses_str = self.tensor_fn._example_level_pad(responses_str, active_mask)
-          
-            active_mask[active_mask.clone()] = new_active_masks
+            raw_assistant_messages = self.tokenizer.batch_decode(gen_output.batch['responses'], skip_special_tokens=True)
+            if isinstance(env, BaseToolEnv):
+                if self.config.use_batch_tool_calls:
+                    assistant_messages, tool_messages, _, new_active_masks = env.batch_step(raw_assistant_messages)
+                else:
+                    assistant_messages = []
+                    tool_messages = []
+                    new_active_masks = []
+                    for raw_assistant_message in raw_assistant_messages:
+                        assistant_message, tool_message, _, active = env.step(raw_assistant_message)
+                        assistant_messages.append(assistant_message)
+                        tool_messages.append(tool_message)
+                        new_active_masks.append(active)
+                tool_images = [[]] * len(raw_assistant_messages)
+            elif isinstance(env, BaseImageToolEnv):
+                if self.config.use_batch_tool_calls:
+                    assistant_messages, tool_messages, tool_images, _, new_active_masks = env.batch_step(raw_assistant_messages)
+                else:
+                    assistant_messages = []
+                    tool_messages = []
+                    tool_images = []
+                    new_active_masks = []
+                    for raw_assistant_message in raw_assistant_messages:
+                        assistant_message, tool_message, tool_image, success, stop = env.step(raw_assistant_message)
+
+            print(f"[DEBUG] Assistant message Example: {assistant_messages[0]}")
+            print(f"[DEBUG] Tool message Example: {tool_messages[0]}")
+
+            assistant_messages = self._example_level_pad(assistant_messages, active_mask, pad_value="")
+            tool_messages = self._example_level_pad(tool_messages, active_mask, pad_value="")
+            tool_images = self._example_level_pad(tool_images, active_mask, pad_value=[])
+
+            active_mask[active_mask.clone()] = torch.tensor(new_active_masks, dtype=torch.bool)
 
             turns[active_mask] += 1
-
-            if self.config.use_batch_tool_calls:
-                # Use batch execution for tool calls
-                tool_responses, tool_responses_images = self._execute_tool_calls_batch(responses_str, envs, active_mask)
-            else:
-                # Use sequential execution for tool calls
-                tool_responses, tool_responses_images = self._execute_tool_calls(responses_str, envs, active_mask)
 
             active_num_list.append(active_mask.sum().item())
 
             # Update states
             rollings = self._update_rolling_state(
                 rollings,
-                responses_str,
-                tool_responses,
-                tool_responses_images
+                assistant_messages,
+                tool_messages,
+                tool_images
             )
  
         print("ACTIVE_TRAJ_NUM:", active_num_list)

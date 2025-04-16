@@ -24,7 +24,7 @@ from verl.utils.model import compute_position_id_with_mask
 import verl.utils.torch_functional as verl_F
 from verl.utils.dataset.rl_dataset import RLHFDataset
 
-from agent_r1.tool.tool_env import ToolEnv
+from agent_r1.tool.base import BaseToolEnv
 
 
 def collate_fn(data_list: list[dict]) -> dict:
@@ -87,10 +87,10 @@ class ToolRLDataset(RLHFDataset):
                  return_raw_chat=False,
                  truncation='error',
                  filter_overlong_prompts=False,
-                 tool_env: ToolEnv = None,
+                 tool_env: BaseToolEnv = None,
                  use_custom_tool_format_func=False):
         self.tool_env = tool_env
-        self.tools = tool_env.tool_desc
+        self.tools = [tool.tool_description for tool in tool_env.tools]
         self.use_custom_tool_format_func = use_custom_tool_format_func
         super().__init__(parquet_files, tokenizer, processor, prompt_key, image_key, max_prompt_length, filter_prompts, cache_dir, chat_template_func, return_raw_chat, truncation, filter_overlong_prompts)
 

@@ -206,16 +206,7 @@ trainer:
 tool:
   max_turns: 10
   use_batch_tool_calls: True
-  tool_call_start: <tool_call>
-  tool_call_end: </tool_call>
-  tool_response_start: <tool_response>
-  tool_response_end: </tool_response>
-  tool_custom_response_template: |
-
-    <|im_start|>user
-    <tool_response>
-    {tool_response}
-    </tool_response><|im_end|>
-    <|im_start|>assistant
-    <think>
-  env: search
+  tools: ['search']
+  env: nous
+  env_config:
+    cut_tool_call: True

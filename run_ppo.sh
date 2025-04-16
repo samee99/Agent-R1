@@ -1,6 +1,6 @@
 export VLLM_ATTENTION_BACKEND=XFORMERS
 export BASE_MODEL='Qwen/Qwen2.5-1.5B-Instruct'
-export PROJECT_NAME='hotpotqa_qwen2.5-1.5b-instruct'
+export PROJECT_NAME='debug_env'
 export EXPERIMENT_NAME=ppo
 export HYDRA_FULL_ERROR=1
 export CUDA_LAUNCH_BLOCKING=1
@@ -22,7 +22,7 @@ python3 -m agent_r1.src.main_agent \
     actor_rollout_ref.actor.fsdp_config.param_offload=False \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=2 \
-    actor_rollout_ref.rollout.tensor_model_parallel_size=4 \
+    actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=2 \
@@ -40,10 +40,9 @@ python3 -m agent_r1.src.main_agent \
     trainer.logger=['console','wandb'] \
     trainer.project_name=$PROJECT_NAME \
     trainer.experiment_name=$EXPERIMENT_NAME \
-    trainer.n_gpus_per_node=8 \
+    trainer.n_gpus_per_node=4 \
     trainer.nnodes=1 \
     trainer.save_freq=-1 \
     trainer.test_freq=10 \
     trainer.total_epochs=1 \
-    trainer.val_before_train=True \
-    tool.env='search' $@ 
+    trainer.val_before_train=True $@ 
