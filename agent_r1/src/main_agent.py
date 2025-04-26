@@ -70,7 +70,10 @@ class RewardManager():
 
             sequences_str = self.tokenizer.decode(sequences, skip_special_tokens=False)
             pad_token_id = self.tokenizer.pad_token_id
+            eos_token = self.tokenizer.eos_token
             sequences_str = sequences_str.split(self.tokenizer.decode([pad_token_id]))[0]
+            if not sequences_str.endswith(eos_token):
+                sequences_str += eos_token
 
             ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
 
@@ -192,7 +195,7 @@ class TaskRunner:
         resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
         tools = [_default_tool(name) for name in config.tool.tools]
-        env = _default_env(config.tool.env)(tools=tools, config=config.tool.env_config)
+        env = _default_env(config.tool.env)(tools=tools)
 
         trainer = RayAgentTrainer(config=config,
                                 tokenizer=tokenizer,
