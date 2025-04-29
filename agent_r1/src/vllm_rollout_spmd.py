@@ -133,16 +133,23 @@ class vLLMRollout(BaseRollout):
         )
 
         if config.stop_token_ids and len(config.stop_token_ids) > 0:
-            kwargs['stop_token_ids'] = config.stop_token_ids
+            if not isinstance(config.stop_token_ids, list):
+                kwargs['stop_token_ids'] = [config.stop_token_ids] if isinstance(config.stop_token_ids, int) else list(config.stop_token_ids)
+            else:
+                kwargs['stop_token_ids'] = config.stop_token_ids
 
         # # we may detokenize the result all together later
         if vllm_version != '0.3.1':
             kwargs['detokenize'] = False
 
+        if self.config.stop and len(self.config.stop) > 0:
+            kwargs['detokenize'] = True
+            kwargs['stop'] = self.config.stop
+
         # supporting adding any sampling params from the config file
         for k in config.keys():
             if hasattr(SamplingParams(), str(k)):
-                if k == 'stop':
+                if k == 'stop' or k == 'stop_token_ids':
                     continue
                 kwargs[k] = config.get(k)
 
@@ -166,15 +173,6 @@ class vLLMRollout(BaseRollout):
         # if len(old_sampling_params_args):
         for key, value in old_sampling_params_args.items():
             setattr(self.sampling_params, key, value)
-
-    def _stop(self, response_ids: List[int], stop: List[str]) -> List[int]:
-        response_tokens = self.tokenizer.convert_ids_to_tokens(response_ids)
-        response_sofar = ''
-        for i, token in enumerate(response_tokens):
-            response_sofar += token
-            if any(stop_str in response_sofar for stop_str in stop):
-                return response_ids[:i+1]
-        return response_ids
 
     @torch.no_grad()
     def generate_sequences(self, prompts: DataProto, **kwargs) -> DataProto:
@@ -245,8 +243,6 @@ class vLLMRollout(BaseRollout):
                 for sample_id in range(len(output.outputs)):
                     response.append(output.outputs[sample_id].token_ids)
 
-            if self.config.stop and len(self.config.stop) > 0:
-                response = [self._stop(response_ids, self.config.stop) for response_ids in response]
             response = pad_2d_list_to_length(response, self.pad_token_id,
                                              max_length=self.config.response_length).to(idx.device)
 
