@@ -1,5 +1,5 @@
 from agent_r1.tool.base import BaseToolEnv, BaseTool
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 import re
 import json
 
@@ -76,6 +76,9 @@ class NousToolEnv(BaseToolEnv):
                     if "name" not in tool_call:
                         tool_responses.append("Error: No tool name")
                         tool_successes.append(False)
+                    elif "arguments" not in tool_call:
+                        tool_responses.append("Error: No tool arguments")
+                        tool_successes.append(False)
                     else:
                         tool_name = tool_call["name"]
                         if tool_name not in self.tool_map:
@@ -124,7 +127,7 @@ class NousToolEnv(BaseToolEnv):
         else:
             return False
         
-    def extract_tool_calls(self, raw_response: str) -> List[str]:
+    def extract_tool_calls(self, raw_response: str) -> List[Any]:
         tool_calls = []
         pattern = re.compile(f"{re.escape(self.tool_call_start)}(.*?){re.escape(self.tool_call_end)}", re.DOTALL)
         for tool_call in re.findall(pattern, raw_response):

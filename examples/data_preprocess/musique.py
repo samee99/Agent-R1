@@ -45,11 +45,11 @@ if __name__ == '__main__':
     parser.add_argument('--hdfs_dir', default=None)
     parser.add_argument('--download_method', choices=['huggingface', 'direct'], default='huggingface',
                         help='Method to download the dataset: huggingface or direct')
-    parser.add_argument('--config', choices=['default', 'answerable'], default='default',
+    parser.add_argument('--config', choices=['default', 'answerable'], default='answerable',
                         help='Dataset configuration to use: default (MusiQue-Full) or answerable (MusiQue-Ans)')
-    parser.add_argument('--train_size', type=int, default=None,
+    parser.add_argument('--train_size', type=int, default=12800,
                         help='Number of training samples to use')
-    parser.add_argument('--val_size', type=int, default=None,
+    parser.add_argument('--val_size', type=int, default=128,
                         help='Number of validation samples to use')
 
     args = parser.parse_args()
@@ -106,33 +106,17 @@ if __name__ == '__main__':
         indices = random.sample(range(len(validation_dataset)), args.val_size)
         validation_dataset = validation_dataset.select(indices)
     
-    instruction_following = """Answer the given question. You can use the tools provided to you to answer the question. You can use the tool as many times as you want.
-You must first conduct reasoning inside <think>...</think>. If you need to use the tool, you can use the tool call <tool_call>...</tool_call> to call the tool after <think>...</think>.
-When you have the final answer, you can output the answer inside <answer>...</answer>.
-
-Output format for tool call:
-<think>
-...
-</think>
-<tool_call>
-...
-</tool_call>
-
-Output format for answer:
-<think>
-...
-</think>
-<answer>
-...
-</answer>
-"""                             
+    instruction_following = (
+        r'You FIRST think about the reasoning process as an internal monologue and then provide the final answer. '
+        r'The reasoning process MUST BE enclosed within <think> </think> tags. The final answer MUST BE put in <answer> </answer> tags.'
+    )
 
     # Process each data item
     def make_map_fn(split):
         def process_fn(example, idx):
             # Extract the question
             question_raw = example.get('question', '')
-            question = instruction_following + "Question: " + question_raw
+            question = "Question: " + question_raw + '\n' + instruction_following
             
             # Extract the answer
             answer_raw = example.get('answer', '')

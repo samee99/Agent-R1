@@ -88,10 +88,10 @@ class ToolRLDataset(RLHFDataset):
                  truncation='error',
                  filter_overlong_prompts=False,
                  tool_env: BaseToolEnv = None,
-                 use_custom_tool_format_func=False):
+                 use_custom_system_prompt=False):
         self.tool_env = tool_env
         self.tools = [tool.tool_description for tool in tool_env.tools]
-        self.use_custom_tool_format_func = use_custom_tool_format_func
+        self.use_custom_system_prompt = use_custom_system_prompt
         super().__init__(parquet_files, tokenizer, processor, prompt_key, image_key, max_prompt_length, filter_prompts, cache_dir, chat_template_func, return_raw_chat, truncation, filter_overlong_prompts)
 
     def __getitem__(self, item):
@@ -102,11 +102,11 @@ class ToolRLDataset(RLHFDataset):
 
         chat = row_dict.pop(self.prompt_key)
 
-        if self.use_custom_tool_format_func:
+        if self.use_custom_system_prompt:
             if chat[0]['role'] == 'system':
-                chat[0]['content'] = chat[0]['content'] + self.tool_env.tools_format_func()
+                chat[0]['content'] = chat[0]['content'] + self.tool_env.system_prompt
             else:
-                system_msg = [{"role": "system", "content": self.tool_env.tools_format_func()}]
+                system_msg = [{"role": "system", "content": self.tool_env.system_prompt}]
                 # Convert chat to a list if it's not already one
                 chat_list = chat.tolist() if hasattr(chat, 'tolist') else list(chat)
                 chat = system_msg + chat_list

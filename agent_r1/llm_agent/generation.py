@@ -319,7 +319,8 @@ class ToolGenerationManager:
             gen_output = unpad_dataproto(gen_output, pad_size=pad_size)
 
             raw_responses_ids = gen_output.batch['responses']
-            raw_responses = self.tokenizer.batch_decode(raw_responses_ids, skip_special_tokens=True)
+            responses_ids = env.process_responses_ids(self.tokenizer, raw_responses_ids)
+            raw_responses = self.tokenizer.batch_decode(responses_ids, skip_special_tokens=True)
             if isinstance(env, BaseToolEnv):
                 if self.config.use_batch_tool_calls:
                     tool_responses, _, new_active_masks = env.batch_step(raw_responses)
@@ -344,10 +345,7 @@ class ToolGenerationManager:
                         tool_images.append(tool_image)
                         new_active_masks.append(stop)
 
-            print(f"[DEBUG] Raw response Example: {raw_responses[0]}")
-            print(f"[DEBUG] Tool response Example: {tool_responses[0]}")
-
-            raw_responses_ids = self._example_level_pad(raw_responses_ids, active_mask)
+            responses_ids = self._example_level_pad(responses_ids, active_mask)
             tool_responses = self._example_level_pad(tool_responses, active_mask, pad_value="")
             tool_images = self._example_level_pad(tool_images, active_mask, pad_value=[])
 
@@ -360,7 +358,7 @@ class ToolGenerationManager:
             # Update states
             rollings = self._update_rolling_state(
                 rollings,
-                raw_responses_ids,
+                responses_ids,
                 tool_responses,
                 tool_images
             )

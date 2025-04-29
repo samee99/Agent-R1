@@ -419,7 +419,7 @@ class RayAgentTrainer(object):
                                          truncation=self.config.data.get('truncation', 'error'),
                                          filter_overlong_prompts=self.config.data.filter_overlong_prompts,
                                          tool_env=self.env,
-                                         use_custom_tool_format_func=self.config.data.get('use_custom_tool_format_func', False))
+                                         use_custom_system_prompt=self.config.data.get('use_custom_system_prompt', False))
         assert self.train_dataset.truncation == self.config.data.get(
             'truncation', 'error'
         ), f'dataset truncation {self.train_dataset.truncation} must be the same as config {self.config.data.get("truncation", "error")}'
@@ -449,7 +449,7 @@ class RayAgentTrainer(object):
                                        truncation=self.config.data.get('truncation', 'error'),
                                        filter_overlong_prompts=self.config.data.filter_overlong_prompts,
                                        tool_env=self.val_env,
-                                       use_custom_tool_format_func=self.config.data.get('use_custom_tool_format_func', False))
+                                       use_custom_system_prompt=self.config.data.get('use_custom_system_prompt', False))
         assert self.val_dataset.truncation == self.config.data.get(
             'truncation', 'error'
         ), f'dataset truncation {self.val_dataset.truncation} must be the same as config {self.config.data.get("truncation", "error")}'

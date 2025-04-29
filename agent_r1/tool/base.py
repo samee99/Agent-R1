@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Tuple, Union
+from typing import Dict, List, Any, Tuple
 from agent_r1.tool.utils import is_tool_schema
 from PIL import Image
 from jsonschema import validate, ValidationError
-
+import torch
 class BaseTool(ABC):
     name: str = ''
     description: str = ''
@@ -68,18 +68,25 @@ class BaseToolEnv(ABC):
     def batch_step(self, raw_responses: List[str]) -> Tuple[List[str], List[List[bool]], List[bool]]:
         results = [self.step(raw_response) for raw_response in raw_responses]
         return [result[0] for result in results], [result[1] for result in results], [result[2] for result in results]
+    
+    def process_responses_ids(self, tokenizer, raw_responses_ids: torch.Tensor) -> torch.Tensor:
+        return raw_responses_ids
 
     @abstractmethod
     def stop(self, raw_response: str) -> bool:
         pass
 
     @abstractmethod
-    def extract_tool_calls(self, raw_response: str) -> List[Dict]:
+    def extract_tool_calls(self, raw_response: str) -> List[Any]:
         pass
     
     @abstractmethod
     def format_tool_response(self, tool_response: str) -> str:
         pass
+
+    @property
+    def system_prompt(self) -> str:
+        return ""
 
 
 class BaseImageToolEnv(BaseToolEnv, ABC):
