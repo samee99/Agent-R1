@@ -390,6 +390,15 @@ class ToolGenerationManager:
             final_output['position_ids'] = position_ids
         else:
             final_output['position_ids'] = self.tensor_fn.create_position_ids(final_output['attention_mask'])
+
+        response_length = final_output['responses'].shape[-1]
+        response_mask = final_output['attention_mask'][:, -response_length:]
+
+        final_output['action_mask'] = response_mask.clone()
+
+        for i, action_mask in enumerate(rollings.non_tensor_batch['action_mask']):
+            mask_len = min(len(action_mask), response_mask.shape[1])
+            final_output['action_mask'][i, :mask_len] = torch.tensor(action_mask[:mask_len]) * response_mask[i, :mask_len]
         
         final_output = DataProto.from_dict(final_output)
         final_output.non_tensor_batch = rollings.non_tensor_batch
