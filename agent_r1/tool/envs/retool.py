@@ -1,10 +1,7 @@
-from torch import Tensor
 from agent_r1.tool.base import BaseToolEnv, BaseTool
-from verl.utils.torch_functional import pad_2d_list_to_length
 from typing import List, Tuple, Any
-import re
 
-class MathTIREnv(BaseToolEnv):
+class ReToolEnv(BaseToolEnv):
     def __init__(self, tools: List[BaseTool], max_tool_response_length: int):
         self.tool = tools[0]
         assert self.tool.name == "python"
@@ -34,29 +31,13 @@ class MathTIREnv(BaseToolEnv):
             codes.append({"code": code[0]})
         results = self.tool.batch_execute(codes)
         i = 0
-        for j in len(range(raw_responses)):
+        for j in range(len(raw_responses)):
             if batch_active[j]:
                 result = results[i]
-                batch_tool_response[j] = result["content"]
+                batch_tool_response[j] = self.format_tool_response([result["content"]])
                 batch_tool_successes[j] = [result["success"]]
                 i += 1
         return batch_tool_response, batch_tool_successes, batch_active
-    
-    def process_responses_ids(self, tokenizer, raw_responses_ids: Tensor) -> Tensor:
-        def process_response_ids(raw_response_ids):
-            complete_response = self.tokenizer.decode(raw_response_ids)
-            if not re.search(r"```python(.*)```", complete_response):
-                return raw_response_ids
-            for i in range(len(raw_response_ids) - 1):
-                if raw_response_ids[i] == tokenizer.eos_token_id:
-                    return raw_response_ids
-                current_response = self.tokenizer.decode(raw_response_ids[:i+1])
-                if re.search(r"```python(.*)```", current_response):
-                    return raw_response_ids[:i+1]
-            return raw_response_ids
-        responses_ids = [process_response_ids(raw_response_ids) for raw_response_ids in raw_responses_ids.tolist()]
-        responses_ids = pad_2d_list_to_length(responses_ids, tokenizer.pad_token_id, max_length=raw_responses_ids.size(1)).to(raw_responses_ids.device)
-        return responses_ids
 
     def stop(self, raw_response: str) -> bool:
         tool_calls = self.extract_tool_calls(raw_response)
@@ -67,17 +48,19 @@ class MathTIREnv(BaseToolEnv):
         
     def extract_tool_calls(self, raw_response: str) -> List[Any]:
         """
-        extract the code after "```python", and before "```"
+        extract the code after "<code>", and before "</code>"
         """
         code = ''
         start = False
         for line in raw_response.split('\n'):
-            if line.startswith('```python') or line.endswith('```python'):
+            if line.startswith('<code>'):
                 code += '\n# ========\n'
                 start = True
-            elif line.startswith('```') and not line.startswith('```python'):
+            elif line.startswith('</code>'):
                 start = False
             elif start:
+                if line.startswith('```'):
+                    continue
                 code += line + '\n'
         if start or len(code) == 0:
             # the code is incomplete
@@ -85,4 +68,8 @@ class MathTIREnv(BaseToolEnv):
         return [code]
         
     def format_tool_response(self, tool_responses: List[str]) -> str:
-        return "\n```output\n" + tool_responses[0] + "\n```\n"
+        if len(tool_responses) == 0:
+            return ""
+        if len(tool_responses[0]) > self.max_tool_response_length:
+            tool_responses[0] = tool_responses[0][:self.max_tool_response_length] + "..."
+        return "\n<interpreter>\n" + tool_responses[0] + "\n</interpreter>\n"

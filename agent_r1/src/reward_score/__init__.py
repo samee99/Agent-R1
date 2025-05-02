@@ -6,8 +6,8 @@ def _default_compute_score_format(data_source, solution_str, extra_info=None):
         from . import gsm8k
         res = gsm8k.compute_score_format(solution_str)
     elif data_source == 'BytedTsinghua-SIA/DAPO-Math-17k':
-        from . import math
-        res = math.compute_score_format(solution_str)
+        from . import retool
+        res = retool.compute_score_format(solution_str)
     else:
         raise NotImplementedError
     
@@ -24,8 +24,8 @@ def _default_compute_score_answer(data_source, solution_str, ground_truth, extra
         from . import gsm8k
         res = gsm8k.compute_score_answer(solution_str, ground_truth)
     elif data_source == 'BytedTsinghua-SIA/DAPO-Math-17k':
-        from . import math
-        res = math.compute_score_answer(solution_str, ground_truth)
+        from . import retool
+        res = retool.compute_score_answer(solution_str, ground_truth)
     else:
         raise NotImplementedError
     
@@ -42,8 +42,8 @@ def _default_compute_score_format_answer(data_source, solution_str, ground_truth
         from . import gsm8k
         res = gsm8k.compute_score_format_answer(solution_str, ground_truth)
     elif data_source == 'BytedTsinghua-SIA/DAPO-Math-17k':
-        from . import math
-        res = math.compute_score_format_answer(solution_str, ground_truth)
+        from . import retool
+        res = retool.compute_score_format_answer(solution_str, ground_truth)
     else:
         raise NotImplementedError
     

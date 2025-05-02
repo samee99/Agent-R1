@@ -9,8 +9,6 @@ from dataclasses import dataclass
 @dataclass
 class TensorConfig:
     pad_token_id: int
-    max_prompt_length: int
-    max_tool_response_length: int
 
 
 class TensorHelper:

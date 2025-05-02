@@ -195,7 +195,7 @@ class TaskRunner:
         resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
         tools = [_default_tool(name) for name in config.tool.tools]
-        env = _default_env(config.tool.env)(tools=tools)
+        env = _default_env(config.tool.env)(tools=tools, max_tool_response_length=config.tool.max_tool_response_length)
 
         trainer = RayAgentTrainer(config=config,
                                 tokenizer=tokenizer,

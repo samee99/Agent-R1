@@ -96,7 +96,7 @@ def compute_score_format(solution_str):
         # Check first assistant block contains <think> tags
         for i, assistant_block in enumerate(assistant_blocks[:-1]):
             if assistant_block.count('<think>') == 1 and assistant_block.count('</think>') == 1 and assistant_block.count('<tool_call>') == 1 and assistant_block.count('</tool_call>') == 1:
-                think_match = re.search(r'^<think>(.*?)</think>\n<tool_call>(.*?)</tool_call>$', assistant_block, re.DOTALL)
+                think_match = re.search(r'^<think>(.*?)</think>(.*?)<tool_call>(.*?)</tool_call>$', assistant_block, re.DOTALL)
                 # soft_think_match = re.search(r'<think>(.*?)</think>(.*?)<tool_call>(.*?)</tool_call>', assistant_block, re.DOTALL)
                 if think_match:
                     # format_reward += 0.2 * (0.8 ** i)
@@ -104,7 +104,7 @@ def compute_score_format(solution_str):
 
         # Check the last assistant block contains <answer> tags
         last_assistant_block = assistant_blocks[-1]
-        think_answer_match = re.search(r'^<think>(.*?)</think>\n<answer>(.*?)</answer>$', last_assistant_block, re.DOTALL)
+        think_answer_match = re.search(r'^<think>(.*?)</think>(.*?)<answer>(.*?)</answer>$', last_assistant_block, re.DOTALL)
         if think_answer_match:
             format_reward += 0.5
     except Exception as e:

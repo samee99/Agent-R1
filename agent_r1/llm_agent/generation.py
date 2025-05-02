@@ -22,7 +22,6 @@ class ToolGenerationConfig:
     max_prompt_length: int 
     max_response_length: int
     max_response_length_single_turn: int
-    max_tool_response_length: int
     use_batch_tool_calls: bool = False
     
 class ToolGenerationManager:
@@ -43,9 +42,7 @@ class ToolGenerationManager:
         self.is_validation = is_validation
 
         self.tensor_fn = TensorHelper(TensorConfig(
-            pad_token_id=tokenizer.pad_token_id,
-            max_prompt_length=config.max_prompt_length,
-            max_tool_response_length=config.max_tool_response_length,
+            pad_token_id=tokenizer.pad_token_id
         ))
 
     def _batch_tokenize(self, responses: List[str]) -> torch.Tensor:

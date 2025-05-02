@@ -4,7 +4,7 @@ import re
 import json
 
 class NousToolEnv(BaseToolEnv):
-    def __init__(self, tools: List[BaseTool]):
+    def __init__(self, tools: List[BaseTool], max_tool_response_length: int):
         self.tools = tools
         self.tool_map = {tool.name: tool for tool in self.tools}
         self.tool_call_start = "<tool_call>"
@@ -13,7 +13,7 @@ class NousToolEnv(BaseToolEnv):
         self.tool_response_end = "</tool_response>"
         self.eos_token = "<|im_end|>"
         self.parallel_tool_calls = False
-
+        self.max_tool_response_length = max_tool_response_length
     def step(self, raw_response: str) -> Tuple[str, List[bool], bool]:
         tool_calls = self.extract_tool_calls(raw_response)
         if len(tool_calls) == 0:

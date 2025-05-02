@@ -88,9 +88,12 @@ class ToolRLDataset(RLHFDataset):
                  truncation='error',
                  filter_overlong_prompts=False,
                  tool_env: BaseToolEnv = None,
+                 use_default_tool_template=True,
                  use_custom_system_prompt=False):
         self.tool_env = tool_env
-        self.tools = [tool.tool_description for tool in tool_env.tools]
+        if use_default_tool_template:
+            self.tools = [tool.tool_description for tool in tool_env.tools]
+        self.use_default_tool_template = use_default_tool_template
         self.use_custom_system_prompt = use_custom_system_prompt
         super().__init__(parquet_files, tokenizer, processor, prompt_key, image_key, max_prompt_length, filter_prompts, cache_dir, chat_template_func, return_raw_chat, truncation, filter_overlong_prompts)
 
@@ -112,7 +115,10 @@ class ToolRLDataset(RLHFDataset):
                 chat = system_msg + chat_list
             prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
         else:
-            prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, tools=self.tools, add_generation_prompt=True, tokenize=False)
+            if self.use_default_tool_template:
+                prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, tools=self.tools, add_generation_prompt=True, tokenize=False)
+            else:
+                prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
 
         is_multi_modal = self.image_key in row_dict
         if is_multi_modal:  # expand image token
@@ -187,8 +193,20 @@ class ToolRLDataset(RLHFDataset):
         # filter out too long prompts
         tokenizer = self.tokenizer
         prompt_key = self.prompt_key
-        self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
-            tokenizer.apply_chat_template(doc[prompt_key], tools=self.tools, add_generation_prompt=True)) <= self.max_prompt_length,
+        # TODO: add custom system prompt
+        if self.use_custom_system_prompt:
+            custom_system_prompt = self.tool_env.system_prompt
+            self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
+                tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True)) + len(custom_system_prompt) <= self.max_prompt_length,
+                                                             axis=1)]
+        else:
+            if self.use_default_tool_template:
+                self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
+                    tokenizer.apply_chat_template(doc[prompt_key], tools=self.tools, add_generation_prompt=True)) <= self.max_prompt_length,
+                                                             axis=1)]
+            else:
+                self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
+                    tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True)) <= self.max_prompt_length,
                                                              axis=1)]
 
         print(f'filter dataset len: {len(self.dataframe)}')

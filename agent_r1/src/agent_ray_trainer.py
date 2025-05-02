@@ -419,6 +419,7 @@ class RayAgentTrainer(object):
                                          truncation=self.config.data.get('truncation', 'error'),
                                          filter_overlong_prompts=self.config.data.filter_overlong_prompts,
                                          tool_env=self.env,
+                                         use_default_tool_template=self.config.data.get('use_default_tool_template', True),
                                          use_custom_system_prompt=self.config.data.get('use_custom_system_prompt', False))
         assert self.train_dataset.truncation == self.config.data.get(
             'truncation', 'error'
@@ -449,6 +450,7 @@ class RayAgentTrainer(object):
                                        truncation=self.config.data.get('truncation', 'error'),
                                        filter_overlong_prompts=self.config.data.filter_overlong_prompts,
                                        tool_env=self.val_env,
+                                       use_default_tool_template=self.config.data.get('use_default_tool_template', True),
                                        use_custom_system_prompt=self.config.data.get('use_custom_system_prompt', False))
         assert self.val_dataset.truncation == self.config.data.get(
             'truncation', 'error'
@@ -525,7 +527,6 @@ class RayAgentTrainer(object):
             max_prompt_length=self.config.data.max_prompt_length,
             max_response_length=self.config.data.max_response_length,
             max_response_length_single_turn=self.config.data.max_response_length_single_turn,
-            max_tool_response_length=self.config.data.max_tool_response_length,
             use_batch_tool_calls=self.config.tool.use_batch_tool_calls
         )
 
@@ -941,7 +942,6 @@ class RayAgentTrainer(object):
             max_prompt_length=self.config.data.max_prompt_length,
             max_response_length=self.config.data.max_response_length,
             max_response_length_single_turn=self.config.data.max_response_length_single_turn,
-            max_tool_response_length=self.config.data.max_tool_response_length,
             use_batch_tool_calls=self.config.tool.use_batch_tool_calls
         )
 
