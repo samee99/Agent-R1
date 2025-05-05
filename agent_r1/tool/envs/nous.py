@@ -48,9 +48,6 @@ class NousToolEnv(BaseToolEnv):
         return tool_response, tool_successes, True
 
     def batch_step(self, raw_responses: List[str]) -> Tuple[List[str], List[List[bool]], List[bool]]:
-        # TODO: 改成并行执行
-        # return super().batch_step(raw_assistant_messages)
-        # 使用batch_excute执行
         batch_tool_responses = [[]] * len(raw_responses)
         batch_tool_successes = [[]] * len(raw_responses)
         batch_active = [True] * len(raw_responses)
@@ -142,6 +139,8 @@ class NousToolEnv(BaseToolEnv):
     def format_tool_response(self, tool_responses: List[str]) -> str:
         tool_message = "<|im_end|>\n<|im_start|>user\n"
         for i, tool_response in enumerate(tool_responses):
+            if len(tool_response) > self.max_tool_response_length:
+                tool_response = tool_response[:self.max_tool_response_length] + "..."
             tool_message += f"<tool_response>\n{tool_response}\n</tool_response>"
             if i < len(tool_responses) - 1:
                 tool_message += "\n"

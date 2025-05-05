@@ -37,7 +37,7 @@ class MathTIREnv(BaseToolEnv):
         for j in len(range(raw_responses)):
             if batch_active[j]:
                 result = results[i]
-                batch_tool_response[j] = result["content"]
+                batch_tool_response[j] = self.format_tool_response([result["content"]])
                 batch_tool_successes[j] = [result["success"]]
                 i += 1
         return batch_tool_response, batch_tool_successes, batch_active
@@ -85,4 +85,8 @@ class MathTIREnv(BaseToolEnv):
         return [code]
         
     def format_tool_response(self, tool_responses: List[str]) -> str:
+        if len(tool_responses) == 0:
+            return ""
+        if len(tool_responses[0]) > self.max_tool_response_length:
+            tool_responses[0] = tool_responses[0][:self.max_tool_response_length] + "..."
         return "\n```output\n" + tool_responses[0] + "\n```\n"
