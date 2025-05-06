@@ -9,8 +9,8 @@ import importlib
 import os
 from openai import OpenAI
 
-from agent_r1.tool import ToolEnv
-from agent_r1.tool.tools import _default_tools
+from agent_r1.tool.envs.nous import NousToolEnv
+from agent_r1.tool.tools import _default_tool
 import agent_r1.vllm_infer.config as default_config
 
 # ANSI color codes for colored output
@@ -30,7 +30,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run VLLM inference with configurable parameters')
     
     # Environment and API settings
-    parser.add_argument('--env', type=str, default=default_config.ENV,
+    parser.add_argument('--tools', type=str, default=default_config.TOOLS,
                         help='Environment for tool selection')
     parser.add_argument('--api-key', type=str, default=default_config.OPENAI_API_KEY,
                         help='OpenAI API key')
@@ -90,7 +90,7 @@ def main():
             print("Falling back to default config")
     
     # Override config with command-line arguments
-    ENV = args.env
+    TOOLS = args.tools
     OPENAI_API_KEY = args.api_key
     OPENAI_API_BASE = args.api_base
     MODEL_NAME = args.model
@@ -107,14 +107,16 @@ def main():
     )
     
     # Set up tools
-    tools = _default_tools(ENV)
-    env = ToolEnv(tools=tools)
+    tools = []
+    for tool in TOOLS:
+        tools.append(_default_tool(tool))
+    env = NousToolEnv(tools=tools, max_tool_response_length=MAX_TOKENS)
     
     # Create message with question
     question_raw = args.question
     messages = [{
         "role": "user",
-        "content": INSTRUCTION_FOLLOWING + "Question: " + question_raw
+        "content": "Question: " + question_raw + '\n' + INSTRUCTION_FOLLOWING
     }]
     
     print(f"Running inference with model: {MODEL_NAME}")
@@ -122,13 +124,15 @@ def main():
         print(f"{COLORS['bg_user']} User {COLORS['reset']} {COLORS['user']}{question_raw}{COLORS['reset']}")
     else:
         print(f"User: {question_raw}")
+
+    tools = [tool.tool_description for tool in tools]
     
     # Run inference loop
     while True:
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=messages,
-            tools=env.tool_desc,
+            tools=tools,
             tool_choice="auto",
             temperature=TEMPERATURE,
             top_p=TOP_P,
@@ -192,6 +196,7 @@ def main():
                 
                 # Execute the tool
                 result = env.tool_map[tool_call.function.name].execute(json.loads(tool_call.function.arguments))
+                result = result["content"]
                 
                 # Display tool result with color
                 if use_colors:

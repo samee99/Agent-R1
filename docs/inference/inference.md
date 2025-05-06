@@ -50,7 +50,7 @@ For interactive conversations with the model:
 
 ```bash
 # Start the interactive chat interface
-bash scripts/run_chat.sh
+python3 -m agent_r1.vllm_infer.chat
 ```
 
 This launches an interactive terminal where you can chat with the model directly, including support for tools if your model was trained with tool-use capabilities.
@@ -61,7 +61,7 @@ For automation or one-off queries:
 
 ```bash
 # Run a single inference query
-bash scripts/run_infer.sh --question "What is the capital of France?"
+python3 -m agent_r1.vllm_infer.run --question "What is the capital of France?"
 ```
 
 #### Advanced Usage
@@ -72,7 +72,7 @@ You can create a custom configuration file to override defaults:
 
 ```python
 # custom_config.py
-ENV = "search"
+TOOLS = ["CUSTOM_TOOL"]
 OPENAI_API_KEY = "EMPTY"
 OPENAI_API_BASE = "http://localhost:8000/v1"
 MODEL_NAME = "agent"
@@ -85,5 +85,5 @@ REPETITION_PENALTY = 1.1
 Then pass it to your inference script:
 
 ```bash
-bash scripts/run_chat.sh --config path/to/custom_config.py
+python3 -m agent_r1.vllm_infer.chat --config path/to/custom_config.py
 ```
