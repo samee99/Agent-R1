@@ -29,7 +29,9 @@ wget https://huggingface.co/datasets/BeIR/hotpotqa/resolve/main/corpus.jsonl.gz 
 gunzip -c data/corpus/hotpotqa/corpus.jsonl.gz > data/corpus/hotpotqa/hpqa_corpus.jsonl
 
 # Process the corpus and build the search index
-python scripts/hotpotqa_search/process_hotpotqa.py
+cd scripts/hotpotqa_search
+python process_hotpotqa.py
+cd ../../
 ```
 
 This script will:
@@ -41,9 +43,30 @@ This script will:
 #### 4. Run PPO/REINFORCE++/GRPO training with Qwen2.5-1.5B-Instruct
 ```bash
 # Run the PPO training script
-bash run_ppo.sh
+cp examples/trainer/run_ppo_hotpotqa.sh ./
+bash run_ppo_hotpotqa.sh
 # Run the REINFORCE++ training script
-bash run_rpp.sh
+cp examples/trainer/run_rpp_hotpotqa.sh ./
+bash run_rpp_hotpotqa.sh
 # Run the GRPO training script
-bash run_grpo.sh
+cp examples/trainer/run_grpo_hotpotqa.sh ./
+bash run_grpo_hotpotqa.sh
 ```
+
+### 5. Results on HotpotQA
+
+#### PPO
+
+![ppo](../../image/ppo.jpg)
+
+#### REINFORCE++
+
+![rpp](../../image/rpp.jpg)
+
+#### GRPO
+
+![grpo](../../image/grpo.jpg)
+
+We can see that the model (Qwen2.5-1.5B-Instruct) effectively learns to think and then invoke the tool in multiple rounds when faced with challenging multi-hop questions, ultimately achieving improved the EM results. The effectiveness of different reinforcement learning algorithms varies, but the general trend is the same.
+
+Notably, our experiments reveal a striking correlation: EM scores, number of tool calls (turns), and final response length all display consistent trends across training. This demonstrates a novel dimension of scaling laws—one that relates to the frequency of agent-environment interactions. As the agent learns to interact more effectively with its environment through multiple tool calls, performance improves proportionally, suggesting that the ability to engage in multiple rounds of environment interaction may be as crucial to agent performance as traditional scaling factors.

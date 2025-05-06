@@ -44,4 +44,4 @@ python3 -m agent_r1.src.main_agent \
     trainer.val_generations_to_log_to_wandb=0 \
     tool.max_turns=5 \
     tool.tools=['wiki_search'] \
-    data.max_tool_response_length=2048 $@ 
+    tool.max_tool_response_length=2048 $@ 

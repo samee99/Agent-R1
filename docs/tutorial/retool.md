@@ -229,6 +229,26 @@ Copy the training script to the main directory:
 cp examples/trainer/run_ppo_retool.sh ./
 ```
 
+##### Important Configuration Update
+Before running the training script, you need to modify the configuration file to properly handle the `</code>` stop character. In bash scripts, this character can be incorrectly parsed.
+
+```bash
+# Edit the agent trainer configuration file
+nano agent_r1/src/config/agent_trainer.yaml
+```
+
+In the configuration file, find the `actor_rollout_ref.rollout` section and update the `stop` parameter. You should add `"</code>"` to the stop list:
+
+```yaml
+  rollout:
+    # ... existing configuration ...
+    stop: ["</code>"]
+```
+
+Save the file after making this change.
+
+> **Note**: A more elegant solution would be to directly configure this parameter in the training script itself, avoiding the need for manual configuration. If you discover a method to set `actor_rollout_ref.rollout.stop` directly in the script (for example, by using environment variables or command-line arguments), we welcome your pull request contributions to improve this workflow.
+
 ##### Configure Training Parameters
 Edit the `run_ppo_retool.sh` script to adjust parameters according to your needs, ensuring that the tool environment is set to "retool".
 

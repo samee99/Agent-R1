@@ -95,7 +95,7 @@ actor_rollout_ref:
     disable_log_stats: True
     enable_chunked_prefill: True # may get higher throughput when set to True. When activated, Please increase max_num_batched_tokens or decrease max_model_len.
     stop_token_ids: []
-    stop: ['</tool_call>']
+    stop: []
     # for hf rollout
     do_sample: True
     # number of responses (i.e. num sample times)
