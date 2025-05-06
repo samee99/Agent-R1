@@ -4,7 +4,7 @@
   <a href="https://deepwiki.com/0russwest0/Agent-R1"><img src="https://devin.ai/assets/deepwiki-badge.png" alt="Ask DeepWiki.com" height="20"/></a>
   <a href="https://github.com/0russwest0/Agent-R1/stargazers"><img src="https://img.shields.io/github/stars/0russwest0/Agent-R1" alt="GitHub Repo stars"></a>
   <a href="https://github.com/0russwest0/Agent-R1/network/members"><img src="https://img.shields.io/github/forks/0russwest0/Agent-R1" alt="GitHub forks"></a>
-  <a href="https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.png"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
+  <a href="https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.jpg"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
   <a href="https://discord.gg/kW3UZU2e"><img src="https://img.shields.io/badge/Discord-blue?logo=discord&amp"></a>
 </p>
 
@@ -84,7 +84,7 @@ Additional resources are available in the codebase:
 ## Feedback
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
 
-**Join our community**: Connect with other users and our development team in our [WeChat group](https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.png) or [Discord server](https://discord.gg/kW3UZU2e).
+**Join our community**: Connect with other users and our development team in our [WeChat group](https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.jpg) or [Discord server](https://discord.gg/kW3UZU2e).
 
 ## Contributors
 
