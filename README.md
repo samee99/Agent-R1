@@ -1,20 +1,30 @@
 <h1 align="center"> Agent-R1: Training Powerful LLM Agents with End-to-End Reinforcement Learning </h1>
 
-[<img src="https://devin.ai/assets/deepwiki-badge.png" alt="Ask DeepWiki.com" height="20"/>](https://deepwiki.com/0russwest0/Agent-R1)
-[![GitHub Repo stars](https://img.shields.io/github/stars/0russwest0/Agent-R1)](https://github.com/0russwest0/Agent-R1/stargazers)
-![GitHub forks](https://img.shields.io/github/forks/0russwest0/Agent-R1)
-<a href="https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.png"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
-<a href="https://discord.gg/kW3UZU2e"><img src="https://img.shields.io/badge/Discord-blue?logo=discord&amp"></a>
+<p align="center">
+  <a href="https://deepwiki.com/0russwest0/Agent-R1"><img src="https://devin.ai/assets/deepwiki-badge.png" alt="Ask DeepWiki.com" height="20"/></a>
+  <a href="https://github.com/0russwest0/Agent-R1/stargazers"><img src="https://img.shields.io/github/stars/0russwest0/Agent-R1" alt="GitHub Repo stars"></a>
+  <a href="https://github.com/0russwest0/Agent-R1/network/members"><img src="https://img.shields.io/github/forks/0russwest0/Agent-R1" alt="GitHub forks"></a>
+  <a href="https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.png"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
+  <a href="https://discord.gg/kW3UZU2e"><img src="https://img.shields.io/badge/Discord-blue?logo=discord&amp"></a>
+</p>
 
-<!-- <p align="center"><img src="./image/agent.png" width="800px" alt="Agent vs Workflow" /></p> -->
+<p align="center"><img src="./image/agent.png" width="800px" alt="Agent vs Workflow" /></p>
 
 ## News
+
+<details open>
+<summary><b>Recent Updates</b></summary>
 
 - [2025.05.06] **Tool Environment Redesign**: Completely redesigned and abstracted tool environments to support more flexible and diverse agent-tool interactions patterns.
 
 - [2025.05.06] **Critical Bug Fixes**: Fixed GRPO and Reinforce++ training crash issues that were causing NaN values during training. See [issue #30](https://github.com/0russwest0/Agent-R1/issues/30) for details.
 
 - [2025.05.06] **New Tutorials**: Added comprehensive tutorials for creating custom tools and tool environments, including the first open-source runnable implementation of ReTool.
+
+</details>
+
+<details>
+<summary><b>Earlier Updates</b></summary>
 
 - [2025.04.01] Added basic **inference scripts** and a simple interactive chat interface. You can now easily deploy and interact with your trained models. See [inference guide](docs/inference/inference.md) for details.
 
@@ -24,6 +34,8 @@
   > **Important:** After pulling this update, you'll need to reinitialize your environment. Run `git submodule update --init --recursive` and reinstall verl locally from this directory.
 
 - [2025.03.16] Added support for **process rewards**! You can now assign rewards for each tool call based on its effectiveness. To balance process rewards with outcome rewards, we implemented reward normalization inspired by [PRIME](https://github.com/PRIME-RL/PRIME).
+
+</details>
 
 ## Overview
 
