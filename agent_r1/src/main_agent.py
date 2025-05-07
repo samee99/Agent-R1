@@ -16,8 +16,8 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 """
 from .agent_ray_trainer import RayAgentTrainer
 
-from agent_r1.tool import ToolEnv
-from agent_r1.tool.tools import _default_tools
+from agent_r1.tool.envs import _default_env
+from agent_r1.tool.tools import _default_tool
 
 import os
 import ray
@@ -70,7 +70,10 @@ class RewardManager():
 
             sequences_str = self.tokenizer.decode(sequences, skip_special_tokens=False)
             pad_token_id = self.tokenizer.pad_token_id
+            eos_token = self.tokenizer.eos_token
             sequences_str = sequences_str.split(self.tokenizer.decode([pad_token_id]))[0]
+            if not sequences_str.endswith(eos_token):
+                sequences_str += eos_token
 
             ground_truth = data_item.non_tensor_batch['reward_model']['ground_truth']
 
@@ -191,8 +194,8 @@ class TaskRunner:
 
         resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
-        tools = _default_tools(config.tool.env)
-        env = ToolEnv(tools=tools, max_turns=config.tool.max_turns)
+        tools = [_default_tool(name) for name in config.tool.tools]
+        env = _default_env(config.tool.env)(tools=tools, max_tool_response_length=config.tool.max_tool_response_length)
 
         trainer = RayAgentTrainer(config=config,
                                 tokenizer=tokenizer,
@@ -202,7 +205,7 @@ class TaskRunner:
                                 ray_worker_group_cls=ray_worker_group_cls,
                                 reward_fn=RewardManager(tokenizer=tokenizer, num_examine=0),
                                 val_reward_fn=RewardManager(tokenizer=tokenizer, num_examine=1),
-                            env=env)
+                                env=env)
         trainer.init_workers()
         trainer.fit()
 

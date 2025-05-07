@@ -1,22 +1,13 @@
-"""
-Specific tool implementations
-"""
-
 from agent_r1.tool.tools.search_tool import SearchTool
-from agent_r1.tool.tools.calculator_tool import CalculatorTool
+from agent_r1.tool.tools.python_tool import PythonTool
 from agent_r1.tool.tools.wiki_search_tool import WikiSearchTool
-__all__ = [
-    'SearchTool',
-    'CalculatorTool',
-    'WikiSearchTool',
-] 
 
-def _default_tools(env):
-    if env == 'search':
-        return [SearchTool()]
-    elif env == 'calculator':
-        return [CalculatorTool()]
-    elif env == 'wikisearch':
-        return [WikiSearchTool()]
+def _default_tool(name):
+    if name == "search":
+        return SearchTool()
+    elif name == "wiki_search":
+        return WikiSearchTool()
+    elif name == "python":
+        return PythonTool()
     else:
-        return []
+        raise NotImplementedError(f"Tool {name} not implemented")

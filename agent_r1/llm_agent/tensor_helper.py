@@ -9,8 +9,6 @@ from dataclasses import dataclass
 @dataclass
 class TensorConfig:
     pad_token_id: int
-    max_prompt_length: int
-    max_tool_response_length: int
 
 
 class TensorHelper:
@@ -73,22 +71,3 @@ class TensorHelper:
         concatenated = torch.cat(tensors, dim=1)
         padded_tensor = self.convert_pad_structure(concatenated, pad_to_left)
         return padded_tensor
-
-    def _example_level_pad(self, responses_str: List[str],
-                           active_mask: torch.Tensor) -> Tuple[torch.Tensor, List[str]]:
-        """
-        Pad responses for non-active examples with pad tokens.
-        """
-        # Create masked responses tensor
-        batch_size = active_mask.shape[0]
-         
-        # Create masked response strings
-        padded_responses_str = [""] * batch_size
-        
-        s = 0
-        for i, is_active in enumerate(active_mask):
-            if is_active:
-                padded_responses_str[i] = responses_str[s]
-                s += 1
-    
-        return padded_responses_str

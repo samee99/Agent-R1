@@ -45,26 +45,12 @@ if __name__ == '__main__':
     train_dataset = dataset['train']
     test_dataset = dataset['test']
 
-    instruction_following = """You can use the tools provided to you to answer the question. You can use the tool as many times as you want.
-You must first conduct reasoning inside <think>...</think>. If you need to use the tool, you can use the tool call <tool_call>...</tool_call> to call the tool after <think>...</think>.
-When you have the final answer, you can output the answer inside <answer>...</answer>.
+    test_dataset = test_dataset.select(range(100))
 
-Output format for tool call:
-<think>
-...
-</think>
-<tool_call>
-...
-</tool_call>
-
-Output format for answer:
-<think>
-...
-</think>
-<answer>
-...
-</answer>
-"""
+    instruction_following = (
+        r'You FIRST think about the reasoning process as an internal monologue and then provide the final answer. '
+        r'The reasoning process MUST BE enclosed within <think> </think> tags. The final answer MUST BE put in <answer> </answer> tags.'
+    )
 
     # add a row to each data item that represents a unique id
     def make_map_fn(split):
@@ -72,7 +58,7 @@ Output format for answer:
         def process_fn(example, idx):
             question_raw = example.pop('question')
 
-            question = question_raw + ' ' + instruction_following
+            question = "Question: " + question_raw + '\n' + instruction_following
 
             answer_raw = example.pop('answer')
             solution = extract_solution(answer_raw)

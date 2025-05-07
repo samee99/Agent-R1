@@ -76,6 +76,7 @@ class vLLMRollout(BaseRollout):
         """
         super().__init__()
         self.config = config
+        self.tokenizer = tokenizer
         assert not (not config.enforce_eager and config.free_cache_engine), \
             "disable CUDA graph (enforce_eager = False) if free cache engine"
 
@@ -131,13 +132,28 @@ class vLLMRollout(BaseRollout):
             max_tokens=config.response_length,
         )
 
+        if config.stop_token_ids and len(config.stop_token_ids) > 0:
+            if not isinstance(config.stop_token_ids, list):
+                kwargs['stop_token_ids'] = [config.stop_token_ids] if isinstance(config.stop_token_ids, int) else list(config.stop_token_ids)
+            else:
+                kwargs['stop_token_ids'] = config.stop_token_ids
+
         # # we may detokenize the result all together later
         if vllm_version != '0.3.1':
             kwargs['detokenize'] = False
 
+        if self.config.stop and len(self.config.stop) > 0:
+            kwargs['detokenize'] = True
+            if not isinstance(self.config.stop, list):
+                kwargs['stop'] = [self.config.stop] if isinstance(self.config.stop, str) else list(self.config.stop)
+            else:
+                kwargs['stop'] = self.config.stop
+
         # supporting adding any sampling params from the config file
         for k in config.keys():
             if hasattr(SamplingParams(), str(k)):
+                if k == 'stop' or k == 'stop_token_ids':
+                    continue
                 kwargs[k] = config.get(k)
 
         print(f"kwargs: {kwargs}")

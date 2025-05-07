@@ -6,7 +6,6 @@ data:
   max_prompt_length: 512
   max_response_length: 512
   max_response_length_single_turn: 256
-  max_tool_response_length: 512
   train_batch_size: 1024
   val_batch_size: null # DEPRECATED: Validation datasets are sent to inference engines as a whole batch, which will schedule the memory themselves
   return_raw_input_ids: False  # This should be set to true when the tokenizer between policy and rm differs
@@ -15,7 +14,8 @@ data:
   filter_overlong_prompts: False # for large-scale dataset, filtering overlong prompts could be timeconsuming. You should disable this and set `truncation='left'
   truncation: error
   image_key: images
-  use_custom_tool_format_func: False
+  use_default_tool_template: True
+  use_custom_system_prompt: False
 
 actor_rollout_ref:
   hybrid_engine: True
@@ -76,7 +76,7 @@ actor_rollout_ref:
     top_p: 1
     use_fire_sampling: False # https://arxiv.org/abs/2410.21236
     prompt_length: ${data.max_prompt_length}  # not use for opensource
-    response_length: ${data.max_response_length}
+    response_length: ${data.max_response_length_single_turn}
     # for vllm rollout
     dtype: bfloat16 # should align with FSDP
     gpu_memory_utilization: 0.5
@@ -94,6 +94,8 @@ actor_rollout_ref:
     log_prob_max_token_len_per_gpu: ${actor_rollout_ref.actor.ppo_max_token_len_per_gpu}
     disable_log_stats: True
     enable_chunked_prefill: True # may get higher throughput when set to True. When activated, Please increase max_num_batched_tokens or decrease max_model_len.
+    stop_token_ids: []
+    stop: []
     # for hf rollout
     do_sample: True
     # number of responses (i.e. num sample times)
@@ -206,16 +208,6 @@ trainer:
 tool:
   max_turns: 10
   use_batch_tool_calls: True
-  tool_call_start: <tool_call>
-  tool_call_end: </tool_call>
-  tool_response_start: <tool_response>
-  tool_response_end: </tool_response>
-  tool_custom_response_template: |
-
-    <|im_start|>user
-    <tool_response>
-    {tool_response}
-    </tool_response><|im_end|>
-    <|im_start|>assistant
-    <think>
-  env: search
+  tools: ['search']
+  env: nous
+  max_tool_response_length: 512

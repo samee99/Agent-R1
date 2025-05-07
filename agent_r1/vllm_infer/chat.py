@@ -10,8 +10,8 @@ import os
 import sys
 from openai import OpenAI
 
-from agent_r1.tool import ToolEnv
-from agent_r1.tool.tools import _default_tools
+from agent_r1.tool.envs.nous import NousToolEnv
+from agent_r1.tool.tools import _default_tool
 import agent_r1.vllm_infer.config as default_config
 
 # ANSI color codes for colored output
@@ -31,8 +31,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run interactive VLLM chat with configurable parameters')
     
     # Environment and API settings
-    parser.add_argument('--env', type=str, default=default_config.ENV,
-                        help='Environment for tool selection')
+    parser.add_argument('--tools', type=str, default=default_config.TOOLS,
+                        help='Tools for selection')
     parser.add_argument('--api-key', type=str, default=default_config.OPENAI_API_KEY,
                         help='OpenAI API key')
     parser.add_argument('--api-base', type=str, default=default_config.OPENAI_API_BASE,
@@ -70,12 +70,12 @@ def load_custom_config(config_path):
     spec.loader.exec_module(custom_config)
     return custom_config
 
-def get_model_response(client, model_name, messages, env, temperature, top_p, max_tokens, repetition_penalty):
+def get_model_response(client, model_name, messages, tools, temperature, top_p, max_tokens, repetition_penalty):
     """Send messages to the model and get the response"""
     response = client.chat.completions.create(
         model=model_name,
         messages=messages,
-        tools=env.tool_desc,
+        tools=tools,
         tool_choice="auto",
         temperature=temperature,
         top_p=top_p,
@@ -140,6 +140,7 @@ def process_tool_calls(response_message, messages, env, use_colors=True):
             
             # Execute the tool
             result = env.tool_map[tool_call.function.name].execute(json.loads(tool_call.function.arguments))
+            result = result["content"]
             
             # Display tool result with color
             if use_colors:
@@ -175,7 +176,7 @@ def main():
             print("Falling back to default config")
     
     # Override config with command-line arguments
-    ENV = args.env
+    TOOLS = args.tools
     OPENAI_API_KEY = args.api_key
     OPENAI_API_BASE = args.api_base
     MODEL_NAME = args.model
@@ -192,8 +193,13 @@ def main():
     )
     
     # Set up tools
-    tools = _default_tools(ENV)
-    env = ToolEnv(tools=tools)
+    tools = []
+    for tool in TOOLS:
+        tools.append(_default_tool(tool))
+    env = NousToolEnv(tools=tools, max_tool_response_length=MAX_TOKENS)
+    
+    tools = [tool.tool_description for tool in tools]
+    
     
     print(f"Starting interactive chat with model: {MODEL_NAME}")
     print("Type 'exit', 'quit', or 'q' to end the conversation")
@@ -224,14 +230,14 @@ def main():
         # Add user message to history
         messages.append({
             "role": "user",
-            "content": INSTRUCTION_FOLLOWING + "Question: " + user_input
+            "content": "Question: " + user_input + '\n' + INSTRUCTION_FOLLOWING
         })
         
         # Process the conversation with possible multiple tool calls
         has_tool_calls = True
         while has_tool_calls:
             response = get_model_response(
-                client, MODEL_NAME, messages, env, 
+                client, MODEL_NAME, messages, tools, 
                 TEMPERATURE, TOP_P, MAX_TOKENS, REPETITION_PENALTY
             )
             

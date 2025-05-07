@@ -1,8 +1,30 @@
 <h1 align="center"> Agent-R1: Training Powerful LLM Agents with End-to-End Reinforcement Learning </h1>
 
+<p align="center">
+  <a href="https://deepwiki.com/0russwest0/Agent-R1"><img src="https://devin.ai/assets/deepwiki-badge.png" alt="Ask DeepWiki.com" height="20"/></a>
+  <a href="https://github.com/0russwest0/Agent-R1/stargazers"><img src="https://img.shields.io/github/stars/0russwest0/Agent-R1" alt="GitHub Repo stars"></a>
+  <a href="https://github.com/0russwest0/Agent-R1/network/members"><img src="https://img.shields.io/github/forks/0russwest0/Agent-R1" alt="GitHub forks"></a>
+  <a href="https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.jpg"><img src="https://img.shields.io/badge/微信-green?logo=wechat&amp"></a>
+  <a href="https://discord.gg/kW3UZU2e"><img src="https://img.shields.io/badge/Discord-blue?logo=discord&amp"></a>
+</p>
+
 <p align="center"><img src="./image/agent.png" width="800px" alt="Agent vs Workflow" /></p>
 
 ## News
+
+<details open>
+<summary><b>Recent Updates</b></summary>
+
+- [2025.05.06] **Tool Environment Redesign**: Completely redesigned and abstracted tool environments to support more flexible and diverse agent-tool interactions patterns.
+
+- [2025.05.06] **Critical Bug Fixes**: Fixed GRPO and Reinforce++ training crash issues that were causing NaN values during training. See [issue #30](https://github.com/0russwest0/Agent-R1/issues/30) for details.
+
+- [2025.05.06] **New Tutorials**: Added comprehensive tutorials for creating custom tools and tool environments, including the first open-source runnable implementation of ReTool.
+
+</details>
+
+<details>
+<summary><b>Earlier Updates</b></summary>
 
 - [2025.04.01] Added basic **inference scripts** and a simple interactive chat interface. You can now easily deploy and interact with your trained models. See [inference guide](docs/inference/inference.md) for details.
 
@@ -12,6 +34,8 @@
   > **Important:** After pulling this update, you'll need to reinitialize your environment. Run `git submodule update --init --recursive` and reinstall verl locally from this directory.
 
 - [2025.03.16] Added support for **process rewards**! You can now assign rewards for each tool call based on its effectiveness. To balance process rewards with outcome rewards, we implemented reward normalization inspired by [PRIME](https://github.com/PRIME-RL/PRIME).
+
+</details>
 
 ## Overview
 
@@ -37,44 +61,30 @@
 
 ## Get Started
 - [Environment Setup](https://github.com/0russwest0/Agent-R1/blob/main/docs/getting_started/installation.md)
-- [Quick Start: Try Default Search Tool on HotpotQA](https://github.com/0russwest0/Agent-R1/blob/main/docs/getting_started/quickstart.md)
-
-
-
-
-### Results on HotpotQA
-
-#### PPO
-
-![ppo](./image/ppo.jpg)
-
-#### REINFORCE++
-
-![rpp](./image/rpp.jpg)
-
-#### GRPO
-
-![grpo](./image/grpo.jpg)
-
-We can see that the model (Qwen2.5-1.5B-Instruct) effectively learns to think and then invoke the tool in multiple rounds when faced with challenging multi-hop questions, ultimately achieving improved the EM results. The effectiveness of different reinforcement learning algorithms varies, but the general trend is the same.
-
-Notably, our experiments reveal a striking correlation: EM scores, number of tool calls (turns), and final response length all display consistent trends across training. This demonstrates a novel dimension of scaling laws—one that relates to the frequency of agent-environment interactions. As the agent learns to interact more effectively with its environment through multiple tool calls, performance improves proportionally, suggesting that the ability to engage in multiple rounds of environment interaction may be as crucial to agent performance as traditional scaling factors.
+- [Quick Start: Try Default Search Tool on HotpotQA](https://github.com/0russwest0/Agent-R1/blob/main/docs/getting_started/quickstart.md) (see also: [Results on HotpotQA](https://github.com/0russwest0/Agent-R1/blob/main/docs/getting_started/quickstart.md#5-results-on-hotpotqa))
 
 ## Extending Agent-R1 with Your Own Tools and Environments
 
-**Extending Agent-R1** is straightforward: create **custom tools** by extending the `Tool` base class, implement **data preprocessing** scripts to format your dataset, and define **reward functions** for task-specific evaluation. Register these components in their respective directories, and configure a training script to adapt Agent-R1 to your use case.  
+Agent-R1 provides a flexible architecture for creating custom tools and tool environments to suit various agent applications. Our framework is built on two key abstractions:
 
-For detailed implementation guidance, examine the existing code:
-- Tools: `agent_r1/tool/tools/calculator_tool.py`, `search_tool.py`
-- Data processing: `examples/data_preprocess/hotpotqa.py`
-- Reward functions: `verl/utils/reward_score/qa_em_and_format.py`
+1. **BaseTool**: Individual tools that agents can use to interact with external systems
+2. **BaseToolEnv**: Tool environments that define the state transition function for agent-tool interactions
 
-See the [extending doc](https://github.com/0russwest0/Agent-R1/blob/main/docs/extend/extending.md) for details.
+For detailed guidance on extending Agent-R1, refer to our tutorials:
+
+- [Customizing Tools for Multi-hop QA](https://github.com/0russwest0/Agent-R1/blob/main/docs/tutorial/multihopqa.md): Learn how to create and customize tools for retrieving information across multiple knowledge sources
+- [Customizing Tool Environment for ReTool](https://github.com/0russwest0/Agent-R1/blob/main/docs/tutorial/retool.md): Understand how to implement tool environments that integrate code execution with LLM reasoning
+
+Additional resources are available in the codebase:
+- Example tools: `agent_r1/tool/tools/`
+- Example environments: `agent_r1/tool/envs/`
+- Data preprocessing: `examples/data_preprocess/`
+- Reward functions: `verl/utils/reward_score/`
 
 ## Feedback
 We welcome all forms of feedback! Please raise an issue for bugs, questions, or suggestions. This helps our team address common problems efficiently and builds a more productive community.
 
-**Join our community**: Connect with other users and our development team in our [WeChat group](https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.jpg).
+**Join our community**: Connect with other users and our development team in our [WeChat group](https://raw.githubusercontent.com/0russwest0/Agent-R1-Community/refs/heads/main/Wechat.jpg) or [Discord server](https://discord.gg/kW3UZU2e).
 
 ## Contributors
 
