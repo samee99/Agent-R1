@@ -14,6 +14,7 @@ class NousToolEnv(BaseToolEnv):
         self.eos_token = "<|im_end|>"
         self.parallel_tool_calls = False
         self.max_tool_response_length = max_tool_response_length
+    
     def step(self, raw_response: str) -> Tuple[str, List[bool], bool]:
         tool_calls = self.extract_tool_calls(raw_response)
         if len(tool_calls) == 0:
