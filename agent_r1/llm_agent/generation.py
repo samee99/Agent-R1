@@ -366,10 +366,10 @@ class ToolGenerationManager:
         final_output = {}
         final_output['turns'] = turns
         final_output['prompts'] = prompts
-        final_output['responses'] = rollings.batch['responses']
+        final_output['responses'] = rollings.batch['responses'].long()
         final_output['input_ids'] = torch.cat([
             prompts,
-            rollings.batch['responses']
+            rollings.batch['responses'].long()
         ], dim=1)
         final_output['attention_mask'] = self.tensor_fn.create_attention_mask(final_output['input_ids'])
         if "multi_modal_data" in rollings.non_tensor_batch.keys():

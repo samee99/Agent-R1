@@ -158,16 +158,16 @@ if __name__ == '__main__':
                     "style": "rule",
                     "ground_truth": answer_raw
                 },
-                "extra_info": {
-                    'split': split,
-                    'index': str(idx),
-                    'answer': answer_raw,
-                    'question': question_raw,
-                    'supporting_facts': json.dumps(supporting_facts),
-                    'evidences': json.dumps(evidences),
-                    'entity_ids': entity_ids,
-                    'type': question_type
-                }
+                # "extra_info": {
+                #     'split': split,
+                #     'index': str(idx),
+                #     'answer': answer_raw,
+                #     'question': question_raw,
+                #     'supporting_facts': json.dumps(supporting_facts),
+                #     'evidences': json.dumps(evidences),
+                #     'entity_ids': entity_ids,
+                #     'type': question_type
+                # }
             }
             return data
 

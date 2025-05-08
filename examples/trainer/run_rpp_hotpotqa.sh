@@ -27,6 +27,7 @@ python3 -m agent_r1.src.main_agent \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.adv_estimator=reinforce_plus_plus \
     algorithm.kl_ctrl.kl_coef=0.001 \
+    algorithm.use_kl_in_reward=True \
     trainer.logger=['console','wandb'] \
     trainer.project_name=$PROJECT_NAME \
     trainer.experiment_name=$EXPERIMENT_NAME \
@@ -36,7 +37,7 @@ python3 -m agent_r1.src.main_agent \
     trainer.test_freq=10 \
     trainer.total_epochs=1 \
     trainer.val_before_train=True \
-    trainer.val_generations_to_log_to_wandb=0 \
+    trainer.log_val_generations=0 \
     tool.max_turns=5 \
     tool.tools=['search'] \
     tool.max_tool_response_length=2048 $@ 

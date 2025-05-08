@@ -13,11 +13,9 @@
 # limitations under the License.
 
 from typing import List, Union, Optional
-import pandas as pd
-from collections import defaultdict
+import re
+from omegaconf import DictConfig
 
-import torch
-import numpy as np
 from transformers import PreTrainedTokenizer, ProcessorMixin
 
 from verl.utils.model import compute_position_id_with_mask
@@ -26,187 +24,149 @@ from verl.utils.dataset.rl_dataset import RLHFDataset
 
 from agent_r1.tool.base import BaseToolEnv
 
-
-def collate_fn(data_list: list[dict]) -> dict:
-    tensors = defaultdict(list)
-    non_tensors = defaultdict(list)
-
-    for data in data_list:
-        for key, val in data.items():
-            if isinstance(val, torch.Tensor):
-                tensors[key].append(val)
-            else:
-                non_tensors[key].append(val)
-
-    for key, val in tensors.items():
-        tensors[key] = torch.stack(val, dim=0)
-
-    for key, val in non_tensors.items():
-        non_tensors[key] = np.array(val, dtype=object)
-
-    return {**tensors, **non_tensors}
-
-
-def process_image(image: dict, max_pixels: int = 2048 * 2048, min_pixels: int = 512 * 512):
-    import math
-    from io import BytesIO
-    from PIL import Image
-
-    if isinstance(image, dict):
-        image = Image.open(BytesIO(image['bytes']))
-
-    if (image.width * image.height) > max_pixels:
-        resize_factor = math.sqrt(max_pixels / (image.width * image.height))
-        width, height = int(image.width * resize_factor), int(image.height * resize_factor)
-        image = image.resize((width, height))
-
-    if (image.width * image.height) < min_pixels:
-        resize_factor = math.sqrt(min_pixels / (image.width * image.height))
-        width, height = int(image.width * resize_factor), int(image.height * resize_factor)
-        image = image.resize((width, height))
-
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
-
-    return image
-
 class ToolRLDataset(RLHFDataset):
     """
     Dataset for tool use in RLHF
     """
-    def __init__(self,
-                 parquet_files: Union[str, List[str]],
-                 tokenizer: PreTrainedTokenizer,
-                 processor: Optional[ProcessorMixin] = None,
-                 prompt_key='prompt',
-                 image_key='images',
-                 max_prompt_length=1024,
-                 filter_prompts=True,
-                 cache_dir='~/.cache/verl/rlhf',
-                 chat_template_func=None,
-                 return_raw_chat=False,
-                 truncation='error',
-                 filter_overlong_prompts=False,
-                 tool_env: BaseToolEnv = None,
-                 use_default_tool_template=True,
-                 use_custom_system_prompt=False):
-        self.tool_env = tool_env
-        if use_default_tool_template:
-            self.tools = [tool.tool_description for tool in tool_env.tools]
-        self.use_default_tool_template = use_default_tool_template
-        self.use_custom_system_prompt = use_custom_system_prompt
-        super().__init__(parquet_files, tokenizer, processor, prompt_key, image_key, max_prompt_length, filter_prompts, cache_dir, chat_template_func, return_raw_chat, truncation, filter_overlong_prompts)
+    def __init__(
+        self,
+        data_files: Union[str, List[str]],
+        tokenizer: PreTrainedTokenizer,
+        config: DictConfig,
+        processor: Optional[ProcessorMixin] = None,
+        env: Optional[BaseToolEnv] = None,
+    ):
+        self.env = env
+        self.use_default_tool_template = config.get("use_default_tool_template", True)
+        if self.use_default_tool_template and self.env is not None:
+            self.tools = [tool.tool_description for tool in self.env.tools]
+        self.use_custom_system_prompt = config.get("use_custom_system_prompt", False)
+        super().__init__(data_files, tokenizer, config, processor)
+
+    def _build_messages(self, example: dict):
+        messages = example.pop(self.prompt_key)
+        
+        # Apply custom system prompt if needed
+        if self.use_custom_system_prompt and self.env is not None:
+            if isinstance(messages, list):
+                if messages[0]["role"] == "system":
+                    messages[0]["content"] = messages[0]["content"] + self.env.system_prompt
+                else:
+                    system_msg = [{"role": "system", "content": self.env.system_prompt}]
+                    messages = system_msg + messages
+        
+        # Handle image/video content if present
+        if self.image_key in example or self.video_key in example:
+            for message in messages:
+                content = message["content"]
+                content_list = []
+                for segment in re.split("(<image>|<video>)", content):
+                    if segment == "<image>":
+                        content_list.append({"type": "image"})
+                    elif segment == "<video>":
+                        content_list.append({"type": "video"})
+                    else:
+                        content_list.append({"type": "text", "text": segment})
+
+                message["content"] = content_list
+
+        return messages
 
     def __getitem__(self, item):
         """
         Note that we also return the raw_input_ids so that it can be combined with other chat template
         """
-        row_dict = self.dataframe.iloc[item].to_dict()
+        row_dict = self.dataframe[item]
+        messages = self._build_messages(row_dict)
+        model_inputs = {}
 
-        chat = row_dict.pop(self.prompt_key)
-
-        if self.use_custom_system_prompt:
-            if chat[0]['role'] == 'system':
-                chat[0]['content'] = chat[0]['content'] + self.tool_env.system_prompt
-            else:
-                system_msg = [{"role": "system", "content": self.tool_env.system_prompt}]
-                # Convert chat to a list if it's not already one
-                chat_list = chat.tolist() if hasattr(chat, 'tolist') else list(chat)
-                chat = system_msg + chat_list
-            prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
+        # Apply the appropriate chat template based on settings
+        if self.use_default_tool_template and hasattr(self, 'tools'):
+            raw_prompt = self.tokenizer.apply_chat_template(messages, tools=self.tools, add_generation_prompt=True, tokenize=False)
         else:
-            if self.use_default_tool_template:
-                prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, tools=self.tools, add_generation_prompt=True, tokenize=False)
-            else:
-                prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
+            raw_prompt = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
 
-        is_multi_modal = self.image_key in row_dict
-        if is_multi_modal:  # expand image token
-            raw_prompt = prompt_with_chat_template.replace('<image>', '<|vision_start|><|image_pad|><|vision_end|>')
-            row_dict['multi_modal_data'] = {'image': [process_image(image) for image in row_dict.pop(self.image_key)]}
-            image_inputs = self.processor.image_processor(row_dict['multi_modal_data']['image'], return_tensors='pt')
-            image_grid_thw = image_inputs['image_grid_thw']
-            row_dict['multi_modal_inputs'] = {key: val for key, val in image_inputs.items()}
+        if self.processor is not None:
+            from verl.utils.dataset.vision_utils import process_image, process_video
 
-            if image_grid_thw is not None:
-                merge_length = self.processor.image_processor.merge_size**2
-                index = 0
-                while '<image>' in prompt_with_chat_template:
-                    prompt_with_chat_template = prompt_with_chat_template.replace(
-                        '<image>',
-                        '<|vision_start|>' + '<|placeholder|>' * (image_grid_thw[index].prod() // merge_length) +
-                        '<|vision_end|>',
-                        1,
-                    )
-                    index += 1
+            multi_modal_data = {}
 
-                prompt_with_chat_template = prompt_with_chat_template.replace('<|placeholder|>',
-                                                                              self.processor.image_token)
+            images = None
+            if self.image_key in row_dict:
+                images = [process_image(image) for image in row_dict.pop(self.image_key)]
+                multi_modal_data["image"] = images
+
+            videos = None
+            if self.video_key in row_dict:
+                videos = [process_video(video) for video in row_dict.pop(self.video_key)]
+                multi_modal_data["video"] = [video.numpy() for video in videos]
+
+            model_inputs = self.processor(text=[raw_prompt], images=images, videos=videos, return_tensors="pt")
+
+            input_ids = model_inputs.pop("input_ids")
+            attention_mask = model_inputs.pop("attention_mask")
+
+            if "second_per_grid_ts" in model_inputs:
+                model_inputs.pop("second_per_grid_ts")
+
+            # There's a trap here, multi_modal_inputs has to be a dict, not BatchFeature
+            row_dict["multi_modal_data"] = multi_modal_data
+            row_dict["multi_modal_inputs"] = dict(model_inputs)
+
+            # second_per_grid_ts isn't used for training, just for mrope
+            row_dict["multi_modal_inputs"].pop("second_per_grid_ts", None)
+
         else:
-            raw_prompt = prompt_with_chat_template
-        
-        input_ids, attention_mask = verl_F.tokenize_and_postprocess_data(prompt=prompt_with_chat_template,
-                                                                         tokenizer=self.tokenizer,
-                                                                         max_length=self.max_prompt_length,
-                                                                         pad_token_id=self.tokenizer.pad_token_id,
-                                                                         left_pad=True,
-                                                                         truncation=self.truncation)
+            model_inputs = self.tokenizer(raw_prompt, return_tensors="pt", add_special_tokens=False)
+            input_ids = model_inputs.pop("input_ids")
+            attention_mask = model_inputs.pop("attention_mask")
 
-        if is_multi_modal:
+        input_ids, attention_mask = verl_F.postprocess_data(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_length=self.max_prompt_length,
+            pad_token_id=self.tokenizer.pad_token_id,
+            left_pad=True,
+            truncation=self.truncation,
+        )
+
+        if self.processor is not None and self.processor.image_processor.__class__.__name__ == "Qwen2VLImageProcessor":
             from verl.models.transformers.qwen2_vl import get_rope_index
 
-            position_ids = get_rope_index(
-                self.processor,
-                input_ids=input_ids[0],
-                image_grid_thw=image_grid_thw,
-                attention_mask=attention_mask[0],
-            )  # (3, seq_len)
-            position_ids = [position_ids]
+            position_ids = [
+                get_rope_index(
+                    self.processor,
+                    input_ids=input_ids[0],
+                    image_grid_thw=model_inputs.get("image_grid_thw"),
+                    video_grid_thw=model_inputs.get("video_grid_thw"),
+                    second_per_grid_ts=model_inputs.get("second_per_grid_ts"),
+                    attention_mask=attention_mask[0],
+                )
+            ]  # (1, 3, seq_len)
+
         else:
             position_ids = compute_position_id_with_mask(attention_mask)
 
-        row_dict['input_ids'] = input_ids[0]
-        row_dict['attention_mask'] = attention_mask[0]
-        row_dict['position_ids'] = position_ids[0]
-        row_dict['raw_prompt_ids'] = self.tokenizer.encode(raw_prompt, add_special_tokens=False)
+        row_dict["input_ids"] = input_ids[0]
+        row_dict["attention_mask"] = attention_mask[0]
+        row_dict["position_ids"] = position_ids[0]
 
+        raw_prompt_ids = self.tokenizer.encode(raw_prompt, add_special_tokens=False)
+        if len(raw_prompt_ids) > self.max_prompt_length:
+            if self.truncation == "left":
+                raw_prompt_ids = raw_prompt_ids[-self.max_prompt_length :]
+            elif self.truncation == "right":
+                raw_prompt_ids = raw_prompt_ids[: self.max_prompt_length]
+            elif self.truncation == "error":
+                raise RuntimeError(f"Prompt length {len(raw_prompt_ids)} is longer than {self.max_prompt_length}.")
+
+        row_dict["raw_prompt_ids"] = raw_prompt_ids
         # encode prompts without chat template
         if self.return_raw_chat:
-            row_dict['raw_prompt'] = chat.tolist()
+            row_dict["raw_prompt"] = messages
 
         # add index for each prompt
         index = row_dict.get("extra_info", {}).get("index", 0)
         row_dict["index"] = index
 
         return row_dict
-    
-    def _read_files_and_tokenize(self):
-        dataframes = []
-        for parquet_file in self.parquet_files:
-            # read parquet files and cache
-            dataframe = pd.read_parquet(parquet_file)
-            dataframes.append(dataframe)
-        self.dataframe = pd.concat(dataframes)
-
-        print(f'original dataset len: {len(self.dataframe)}')
-
-        # filter out too long prompts
-        tokenizer = self.tokenizer
-        prompt_key = self.prompt_key
-        # TODO: add custom system prompt
-        if self.use_custom_system_prompt:
-            custom_system_prompt = self.tool_env.system_prompt
-            self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
-                tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True)) + len(custom_system_prompt) <= self.max_prompt_length,
-                                                             axis=1)]
-        else:
-            if self.use_default_tool_template:
-                self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
-                    tokenizer.apply_chat_template(doc[prompt_key], tools=self.tools, add_generation_prompt=True)) <= self.max_prompt_length,
-                                                             axis=1)]
-            else:
-                self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
-                    tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True)) <= self.max_prompt_length,
-                                                             axis=1)]
-
-        print(f'filter dataset len: {len(self.dataframe)}')
