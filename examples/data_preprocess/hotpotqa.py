@@ -158,15 +158,15 @@ if __name__ == '__main__':
                     "style": "rule",
                     "ground_truth": answer_raw
                 },
-                "extra_info": {
-                    'split': split,
-                    'index': str(idx),
-                    'answer': answer_raw,
-                    'question': question_raw,
-                    'supporting_facts': json.dumps(supporting_facts),  # Store as JSON string
-                    'level': str(example.get('level', '')),
-                    'type': str(example.get('type', ''))
-                }
+                # "extra_info": {
+                #     'split': split,
+                #     'index': str(idx),
+                #     'answer': answer_raw,
+                #     'question': question_raw,
+                #     'supporting_facts': json.dumps(supporting_facts),  # Store as JSON string
+                #     'level': str(example.get('level', '')),
+                #     'type': str(example.get('type', ''))
+                # }
             }
             return data
 

@@ -171,19 +171,19 @@ if __name__ == '__main__':
                     "style": "rule",
                     "ground_truth": answer_raw
                 },
-                "extra_info": {
-                    'split': split,
-                    'id': example_id,
-                    'index': str(idx),
-                    'answer': answer_raw,
-                    'question': question_raw,
-                    'supporting_facts': json.dumps(supporting_facts),
-                    'context': json.dumps(context),
-                    'decomposition': json.dumps(decomposition),
-                    'bridge_entities': json.dumps(bridge_entities),
-                    'answerable': answerable,
-                    'config': args.config
-                }
+                # "extra_info": {
+                #     'split': split,
+                #     'id': example_id,
+                #     'index': str(idx),
+                #     'answer': answer_raw,
+                #     'question': question_raw,
+                #     'supporting_facts': json.dumps(supporting_facts),
+                #     'context': json.dumps(context),
+                #     'decomposition': json.dumps(decomposition),
+                #     'bridge_entities': json.dumps(bridge_entities),
+                #     'answerable': answerable,
+                #     'config': args.config
+                # }
             }
             return data
 

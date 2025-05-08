@@ -51,3 +51,10 @@ def _default_compute_score_format_answer(data_source, solution_str, ground_truth
         return float(res)
     else:
         return float(res[0])
+    
+def _default_compute_score(data_source, solution_str, ground_truth, extra_info=None):
+    return {
+        "score": _default_compute_score_format_answer(data_source, solution_str, ground_truth, extra_info),
+        "acc": _default_compute_score_answer(data_source, solution_str, ground_truth, extra_info),
+        "format": _default_compute_score_format(data_source, solution_str, extra_info),
+    }

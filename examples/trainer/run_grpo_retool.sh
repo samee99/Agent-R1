@@ -40,7 +40,7 @@ python3 -m agent_r1.src.main_agent \
     trainer.test_freq=10 \
     trainer.total_epochs=2 \
     trainer.val_before_train=True \
-    trainer.val_generations_to_log_to_wandb=0 \
+    trainer.log_val_generations=0 \
     tool.max_turns=5 \
     tool.tools=['python'] \
     tool.env=retool \

@@ -35,6 +35,7 @@ python3 -m agent_r1.src.main_agent \
     critic.model.fsdp_config.optimizer_offload=False \
     algorithm.adv_estimator=gae \
     algorithm.kl_ctrl.kl_coef=0.001 \
+    algorithm.use_kl_in_reward=True \
     trainer.critic_warmup=5 \
     trainer.logger=['console','wandb'] \
     trainer.project_name=$PROJECT_NAME \
@@ -45,7 +46,7 @@ python3 -m agent_r1.src.main_agent \
     trainer.test_freq=10 \
     trainer.total_epochs=2 \
     trainer.val_before_train=True \
-    trainer.val_generations_to_log_to_wandb=0 \
+    trainer.log_val_generations=0 \
     tool.max_turns=5 \
     tool.tools=['python'] \
     tool.env=retool \
