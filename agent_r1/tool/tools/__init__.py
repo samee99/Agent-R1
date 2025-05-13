@@ -8,5 +8,8 @@ def _default_tool(name):
     elif name == "python":
         from agent_r1.tool.tools.python_tool import PythonTool
         return PythonTool()
+    elif name == "rcwa":
+        from agent_r1.tool.tools.rcwa_tool import RCWATool
+        return RCWATool()      
     else:
         raise NotImplementedError(f"Tool {name} not implemented")
